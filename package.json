@@ -1,0 +1,11 @@
+{
+  "name": "hn-es",
+  "version": "1.6.1",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/linkify.test.js test/util.test.js test/votes.test.js test/dropdown.test.js test/dropdown_css.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

@@ -1,34 +1,63 @@
 /*
 * Hacker News Enhancement Suite (HNES)
-* Chris James / etcet.net / chris@etcet.net
+* Modern redesign
 *
-* Initially based on:
-* HN+ for Chrome v1.5
-* by @jarques
-*
+* Design system: CSS custom properties, system font stack,
+* refined palette, CSS-drawn vote arrows, smooth transitions.
+* All JS-injected classes/IDs preserved.
 */
 
+:root {
+  --hn-orange: #ff6600;
+  --hn-orange-hover: #f85a00;
+  --hn-bg: #f6f6ef;
+  --hn-bg-alt: #e6e6df;
+  --hn-surface: #fffffd;
+  --hn-surface-even: #f0f0ea;
+  --hn-text: #1a1a1a;
+  --hn-text-secondary: #5a5a5a;
+  --hn-text-muted: #828282;
+  --hn-border: #d8d8d0;
+  --hn-border-light: #e8e8e2;
+  --hn-blue: #3986f8;
+  --hn-green: #3c963c;
+  --hn-red: #d73937;
+  --hn-black: #000000;
+  --hn-radius: 6px;
+  --hn-radius-sm: 4px;
+  --hn-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --hn-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --hn-shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+  --hn-transition: 0.15s ease;
+  --hn-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --hn-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --hn-max-width: 1170px;
+  --hn-header-height: 44px;
+}
+
 body {
-  /* hide content flash */
   visibility: hidden;
   margin: 0;
+  font-family: var(--hn-font);
+  background: var(--hn-bg);
+  color: var(--hn-text);
+  -webkit-font-smoothing: antialiased;
 }
-/*ignore <center> elements*/
-/*body center {
-  text-align: left;
-}*/
+
 form center {
   text-align: left;
 }
+
 body > center > table {
   width: 100%;
   margin: 0 auto;
   padding-bottom: 20px;
 }
+
 body center table table {
   box-shadow: none;
   padding: 0;
-  background: none
+  background: none;
 }
 
 .hnes-comment .score {
@@ -39,147 +68,178 @@ body center table table {
   display: inline-block;
 }
 
-/*header color*/
+/* ===================== Header ===================== */
+
 #header,
 .nav-drop-down {
-  background-color: #f60;
-}
-/*content color*/
-#content {
-  background-color: #f6f6ef !important;
+  background-color: var(--hn-orange);
 }
 
-/*header padding*/
-#header table td {
-  padding: 5px;
+#header {
+  box-shadow: var(--hn-shadow);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
 }
-/*icon width*/
+
+#content {
+  background-color: var(--hn-bg) !important;
+}
+
+#header table td {
+  padding: 6px 10px;
+}
+
 #header table td:first-child {
   width: 18px;
 }
-/*user nav align*/
+
 #header table td:nth-child(3) {
   text-align: right;
 }
-/*content padding*/
+
+#header img {
+  border-radius: 3px;
+}
+
+#header a:hover img {
+  opacity: 0.9;
+}
+
 #content > td {
-  padding: 21px 8px 21px 8px;
+  padding: 21px 8px;
 }
+
 body#threads-body #content > td {
-  padding: 21px 8px 0px 8px;
+  padding: 21px 8px 0 8px;
 }
+
 body#index-body #content > td {
-  padding: 21px 0px;
+  padding: 21px 0;
 }
 
 table, td {
- background: none !important;
+  background: none !important;
 }
+
 table tr {
   position: relative;
 }
+
 table tr td {
   position: relative;
-  padding: 4px 0px 4px 0px;
+  padding: 4px 0;
 }
 
 #index-body table table {
   margin: 0 auto;
 }
 
-/*highlight every other story line except 'More' link*/
+/* ===================== Index — story list ===================== */
+
 #index-body #content tr:nth-child(2n),
 #jobs-body #content tr:nth-child(2n) {
-  background-color: #e6e6df !important;
+  background-color: var(--hn-bg-alt) !important;
 }
+
 #index-body #content tr,
 #index-body #content tr:nth-child(32) {
-  background-color: #f6f6ef !important;
+  background-color: var(--hn-bg) !important;
 }
+
 #index-body #content tr.on_story {
-  border: 1px solid black;
-  background-color: #c6c6bf !important;
+  border: 1px solid var(--hn-blue);
+  background-color: #d4e4fc !important;
+  box-shadow: inset 3px 0 0 var(--hn-blue);
 }
 
 .blurb {
   margin: 0 1em;
   text-align: center;
+  font-size: 13px;
+  color: var(--hn-text-secondary);
 }
 
-/*position comment and score tally at the top even if story line is multi-line*/
-#index-body .score, #index-body .comments {
+#index-body .score,
+#index-body .comments {
   position: absolute;
   height: 100%;
-  top: 0px;
+  top: 0;
   padding-top: 7px;
   padding-right: 3px;
-  right: 0px;
+  right: 0;
 }
+
 .comments {
   left: 0;
 }
+
 .comments:hover {
-  color: #f60;
+  color: var(--hn-orange);
 }
-/* show a fallback if parsing comment number fails */
+
 .comments:empty::before {
   content: '💬';
 }
 
-/*spacing for comment and score tally*/
-#index-body #content table { /* Firefox */
+#index-body #content table {
   width: 100%;
-  max-width: 1170px;
+  max-width: var(--hn-max-width);
 }
+
 #index-body #content table td:first-child {
   width: 80px;
-  max-width: 80px; /* Firefox */
-  text-align: right;
-}
-#index-body #content table td:nth-child(2) {
-  width: 64px;
-  max-width: 64px; /* Firefox */
+  max-width: 80px;
   text-align: right;
 }
 
-#index-body #content table td.title { /* Firefox */
+#index-body #content table td:nth-child(2) {
+  width: 64px;
+  max-width: 64px;
+  text-align: right;
+}
+
+#index-body #content table td.title {
   width: auto;
 }
 
-/*spacing between story lines*/
 #index-body #content tr td {
   padding-top: 5px;
   padding-bottom: 5px;
 }
+
 #index-body .title {
   padding-left: 8px;
   padding-right: 18px;
 }
-/*comments tally hover*/
+
 .hover-comments-score {
   cursor: pointer;
   text-decoration: underline;
 }
-/*new comments in black*/
+
 .newcomments {
-  color: #000;
+  color: var(--hn-black);
 }
+
 a.comments:hover {
   text-decoration: underline;
 }
 
-/*karma score in the user nav*/
+/* ===================== Navigation ===================== */
+
 #my-karma {
   padding-left: 8px;
-  color: #f6f6ef;
+  color: var(--hn-bg);
+  font-weight: 500;
 }
-/*navigation links*/
+
 .nav-links a {
   color: #222;
   padding-left: 8px;
   padding-right: 8px;
+  text-decoration: none;
+  transition: color var(--hn-transition);
 }
-/*text shadow on hover*/
+
 .nav-links a:hover,
 .more-arrow:hover,
 .more-arrow:hover a,
@@ -187,154 +247,217 @@ a.comments:hover {
 .nav-active-link {
   color: #fff !important;
 }
-/*allow an active link after 'more' dropdown to wrap down*/
+
 .new-active-link {
   display: inline-block;
 }
-/*center alert on jobs page*/
+
 #content > td > center > table {
   text-align: center;
   margin: 0 auto;
 }
-/*hide text-select cursor on | seperators*/
+
 .nav-links span {
   cursor: default;
+  color: rgba(0,0,0,0.3);
 }
-/*hand cursor on more arrow*/
+
 .more-arrow {
   cursor: pointer !important;
 }
-/*down arrow after more links*/
+
 .more-arrow:after {
   position: relative;
   top: -2px;
   left: -3px;
-  font-shadow: none;
   font-size: 8px;
   content: '▼';
   padding-right: 5px;
 }
-/*toggleable drop downs on top of everything*/
+
 .nav-drop-down {
   z-index: 9999;
   display: none;
   position: absolute;
-  padding-top: 10px;
+  padding: 6px 0;
+  border-radius: 0 0 var(--hn-radius-sm) var(--hn-radius-sm);
+  box-shadow: var(--hn-shadow-lg);
+  min-width: 160px;
 }
+
 .nav-drop-down a {
   display: block;
-  padding-left: 8px;
+  padding: 6px 14px;
   text-align: left;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  color: #fff !important;
+  text-decoration: none;
+  transition: background var(--hn-transition);
 }
-/*other main nav links*/
+
+.nav-drop-down a:hover {
+  background: rgba(0,0,0,0.12);
+}
+
 #nav-others {
-  padding-right: 16px;
+  border-radius: var(--hn-radius-sm);
 }
+
 #nav-others a {
-  width: 100%;
+  padding-right: 30px;
 }
-/*other user nav links*/
+
 #user-hidden {
   right: 18px;
+  border-radius: var(--hn-radius-sm);
 }
+
 #user-hidden a {
   padding-right: 28px;
 }
-/*make logout look a little different*/
+
 #user-logout {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  margin-top: 4px;
 }
-/* More link */
+
 #more {
   text-align: left !important;
 }
+
 #more a {
-  color: #f60;
+  color: var(--hn-orange);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--hn-transition);
 }
+
 #more a:hover {
   text-decoration: underline;
 }
 
+/* ===================== Item / story title ===================== */
+
 body#item-body .title {
   width: 100%;
 }
-/*story title*/
+
 .title {
-  color: #242222;
-  font-size: 16px !important;
-  line-height: 18px;
-  font-weight: medium;
+  color: var(--hn-text);
+  font-size: 15px !important;
+  line-height: 1.45;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-/*make self posts text black*/
+/* story title link wrapper */
+.titleline > a {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
 .item-header tr:nth-child(3) td {
   color: #000 !important;
 }
 
 a:link {
   color: #202020;
+  text-decoration: none;
 }
 
-/*submit/add comment button*/
+/* ===================== Buttons & inputs ===================== */
+
 input[type="submit"] {
+  font-family: var(--hn-font);
   font-size: 13px;
-  color: white;
-  background: #f60;
-  padding: 5px 10px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--hn-orange);
+  padding: 6px 16px;
   text-transform: capitalize;
-  border: 1px solid #666;
-  border-radius: 2px;
-}
-input[type="submit"]:hover {
+  border: none;
+  border-radius: var(--hn-radius-sm);
   cursor: pointer;
-  background: #;
+  transition: background var(--hn-transition), transform var(--hn-transition);
 }
-/*format add comment button on its own line*/
+
+input[type="submit"]:hover {
+  background: var(--hn-orange-hover);
+}
+
+input[type="submit"]:active {
+  transform: scale(0.98);
+}
+
 input[value="add comment"] {
   display: block;
 }
-input[type="text"] {
-  font-size: 12px !important;
+
+input[type="text"],
+input[type="password"] {
+  font-family: var(--hn-font);
+  font-size: 13px !important;
+  padding: 6px 10px;
+  border: 1px solid var(--hn-border) !important;
+  border-radius: var(--hn-radius-sm);
+  transition: border-color var(--hn-transition), box-shadow var(--hn-transition);
 }
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: var(--hn-orange) !important;
+  box-shadow: 0 0 0 3px rgba(255,102,0,0.15) !important;
+  outline: none;
+}
+
 font[color="#ff6600"] {
   display: none;
 }
 
 .title a.on_story {
-  border-left: 2px solid #3986f8 !important;
-}
-.submitter a:hover,
-.title a:hover {
-  color: #f60;
+  border-left: 2px solid var(--hn-blue) !important;
 }
 
-/*user name in info subtext*/
+.submitter a:hover,
+.title a:hover {
+  color: var(--hn-orange);
+}
+
+/* ===================== Subtext / metadata ===================== */
+
 .submitter {
   margin-left: 4px;
 }
+
 .subtext, .submitter {
-  color: #b8b8b8;
+  color: var(--hn-text-muted);
   font-size: 11px !important;
   padding-bottom: 15px;
 }
 
 .subtext a, .comhead a {
-  color: #989898 !important
+  color: var(--hn-text-muted) !important;
+  text-decoration: none;
+  transition: color var(--hn-transition);
 }
+
+.subtext a:hover, .comhead a:hover {
+  color: var(--hn-orange) !important;
+}
+
 .comhead {
   color: #000;
   font-size: 11px !important;
 }
+
 div > .comhead {
   font-size: 12px !important;
 }
 
-/*score next to username indicating user upvotes*/
 .hnes-user-score {
-  color: #444;
+  color: var(--hn-text-secondary);
+  font-size: 11px;
 }
 
 .noscore {
@@ -353,159 +476,229 @@ div > .comhead {
   margin: 1em;
   padding: 1em;
   color: #000;
-  background-color: #FFFFFD
+  background-color: var(--hn-surface);
+  border-radius: var(--hn-radius-sm);
 }
 
-/*collapse comment 'button'*/
+/* ===================== Collapse ===================== */
+
 .collapse {
   padding-right: 6px;
   cursor: pointer;
 }
+
 .collapse:hover {
   text-decoration: underline;
 }
+
 .paren {
-  color: #c9c9c9 !important;
+  color: var(--hn-border) !important;
 }
+
 .paren:first-child {
   margin-left: 5px;
 }
+
 .title:first-child {
   padding-left: 5px !important;
 }
+
 .pagetop a:hover,
 .pagetop a:active {
   color: #000;
 }
 
-/*footer links*/
+/* ===================== Footer ===================== */
+
 .yclinks {
   display: block;
-  padding: 10px;
+  padding: 12px;
   text-align: center;
   font-size: 10px;
-  color: #b8b8b8 !important;
+  color: var(--hn-text-muted) !important;
 }
+
 .yclinks a {
-  color: #888 !important;
+  color: var(--hn-text-muted) !important;
+  text-decoration: none;
+  transition: color var(--hn-transition);
+}
+
+.yclinks a:hover {
+  color: var(--hn-orange) !important;
 }
 
 #top-navigation {
   display: block;
 }
+
 .pagetop {
   font-size: 10pt;
 }
+
 .pagetop b a {
   font-size: 11px;
   display: none;
-  color: #a3a3a3 !important
+  color: #a3a3a3 !important;
 }
+
+/* ===================== Textareas ===================== */
+
 textarea {
-  border: 1px solid #c6cfd6 !important;
-  padding: 4px !important;
-  font-size: 12px !important;
+  font-family: var(--hn-font);
+  border: 1px solid var(--hn-border) !important;
+  padding: 8px !important;
+  font-size: 13px !important;
+  border-radius: var(--hn-radius-sm);
+  transition: border-color var(--hn-transition), box-shadow var(--hn-transition);
 }
+
 form textarea {
   background: #fff;
   font-size: 14px;
   padding: 10px;
-  height:80px;
+  height: 80px;
   overflow: auto;
   margin-bottom: 10px;
 }
+
 textarea, input {
   border-width: 1px;
-  border-radius: 2px;
+  border-radius: var(--hn-radius-sm);
 }
-form textarea:focus, textarea:focus, input:focus, input[name="q"] {
-  outline: #f60;
-  border-color: #d73937 !important;
+
+textarea:focus, input:focus {
+  border-color: var(--hn-orange) !important;
+  box-shadow: 0 0 0 3px rgba(255,102,0,0.15) !important;
+  outline: none;
 }
+
 form[action="http://hn.algolia.com/"],
 form[action="//hn.algolia.com/"],
 input[name="q"] {
   width: 270px;
 }
+
 input[name="q"] {
   margin-left: 10px;
   height: 32px;
   padding-left: 10px;
-  color: #888 !important;
+  color: var(--hn-text-muted) !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
+  background: rgba(255,255,255,0.85);
+  border-radius: var(--hn-radius-sm);
 }
+
 input[name="q"]:focus {
-  color: #3b3e40 !important;
+  color: var(--hn-text) !important;
+  background: #fff;
+  border-color: rgba(255,255,255,0.6) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.2) !important;
 }
+
 form[action="http://hn.algolia.com/"],
 form[action="//hn.algolia.com/"] {
   margin: 0 auto;
   color: #fff;
 }
+
 html body center table tbody tr td table tbody tr td table {
-  background: none !important
+  background: none !important;
 }
+
 br {
   display: none;
 }
+
 .default a:link {
   color: #000;
 }
 
-/*usernames are usually black*/
+/* ===================== User highlighting ===================== */
+
 #item-body .comhead a.commenter,
 #threads-body .comhead a.commenter {
   color: #000 !important;
+  font-weight: 600;
 }
-/*but new users are green*/
+
 a.new_user,
 #item-body .comhead a.new_user {
-  color: #3c963c !important;
+  color: var(--hn-green) !important;
 }
-/*and the person who posted the story is orange*/
+
 a.original_poster,
 #item-body .comhead a.original_poster {
-  color: #f60 !important;
+  color: var(--hn-orange) !important;
+  font-weight: 600;
 }
 
 a.dead {
   text-decoration: line-through !important;
+  opacity: 0.6;
 }
 
-.comment font{
+/* ===================== Comments ===================== */
+
+.comment font {
   display: block;
 }
+
 .comment {
   display: block;
   width: 100%;
   max-width: 800px;
-  line-height: 1.5em;
+  line-height: 1.7em;
+  color: #1a1a1a;
 }
+
 .comment, .dead {
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
+
 .comment code {
-  font-size: 13px !important;
+  font-family: var(--hn-font-mono);
+  font-size: 12px !important;
   line-height: 20px;
+  background: var(--hn-bg-alt);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
+
 .default div {
   margin-bottom: 6px !important;
 }
+
 .comment p,
 .comment > font {
-  font-size: 13px !important;
+  font-size: 14px !important;
   margin-top: 6px !important;
   margin-bottom: 6px !important;
 }
 
-/* Wrap <pre> tags (indented text) so they don't have an annoying horizontal scrollbar */
+/* links inside comment text bodies */
+.comment a, .comment a:visited {
+  color: var(--hn-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--hn-text-muted), transparent  70%);
+}
+.comment a:hover {
+  color: var(--hn-orange);
+  text-decoration-color: var(--hn-orange);
+}
+
 pre {
   white-space: pre-wrap;
   margin-left: 1em;
+  font-family: var(--hn-font-mono);
+  font-size: 12px;
+  background: var(--hn-bg-alt);
+  padding: 8px 12px;
+  border-radius: var(--hn-radius-sm);
+  overflow-x: auto;
 }
 
-/*make sure comment headers are on one line
-  even if comment is shorter than header to avoid bug in new chrome (win only)
- */
 #comment-table {
   width: 100%;
 }
@@ -513,57 +706,71 @@ pre {
 .reply_form {
   width: 300px;
 }
+
 .reply_form input[type="submit"] {
   margin: 3px;
 }
+
 a[href^="reply"]:visited {
-  color: #000
+  color: #000;
 }
+
 form input[type="submit"] {
   display: block;
 }
+
+/* ===================== Options bar ===================== */
 
 #options_bar {
   position: fixed;
   bottom: 0;
   background: #fff;
-  padding: 5px;
-  border-top: 1px solid #c9c9c7;
+  padding: 8px 16px;
+  border-top: 1px solid var(--hn-border);
   width: 100%;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  font-size: 12px;
 }
+
 td::selection,
 ::selection *,
 ::selection {
-  background: #dd4b39 !important;
+  background: var(--hn-orange) !important;
   color: #fff;
 }
 
-/* Submit Page */
+/* ===================== Submit page ===================== */
+
 form[action="/r"] table {
   width: 400px;
 }
+
 form[action="/r"],
 form[action="/r"] input[type="text"],
 form[action="/r"] textarea {
   width: 385px;
   margin: 5px 0;
 }
+
 form[action="/r"] input[type="submit"] {
-  margin: 0px;
+  margin: 0;
 }
+
 #submit-overlay {
   position: absolute;
-  background: white;
-  padding: 20px;
+  background: #fff;
+  padding: 24px;
   z-index: 100;
   width: 535px;
   margin: 20px 0 0 150px;
   display: none;
-  border-radius: 4px;
+  border-radius: var(--hn-radius);
+  box-shadow: var(--hn-shadow-lg);
 }
+
 #overlay-bg {
   background: #000;
-  opacity: .6;
+  opacity: .5;
   width: 4000px;
   height: 4000px;
   position: fixed;
@@ -573,44 +780,58 @@ form[action="/r"] input[type="submit"] {
   display: none;
 }
 
-/* HN Heat */
+/* ===================== HN Heat ===================== */
+
 .no-heat {
   color: #000 !important;
 }
+
 .mild {
   color: #520 !important;
 }
+
 .medium {
   color: #a40 !important;
 }
+
 .hot {
-  color: #f60 !important;
+  color: var(--hn-orange) !important;
 }
+
+/* ===================== Jobs ===================== */
 
 #jobs-body table table {
   padding-left: 7px;
   margin: 0 auto;
 }
-#jobs-body #content>td {
+
+#jobs-body #content > td {
   margin: 0;
   padding: 0;
 }
 
+/* ===================== Polls ===================== */
+
 .poll-graph {
-  background-color: #f60;
+  background-color: var(--hn-orange);
   display: block;
-  height: 32px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  transition: width 0.3s ease;
 }
 
 .underlined {
   text-decoration: underline !important;
 }
+
 .no-font-size {
   font-size: 0;
 }
+
 .link-highlight {
-  border: 1px dashed #aaa;
+  border: 1px dashed var(--hn-text-muted);
   padding: 4px 27px 4px 7px !important;
+  border-radius: var(--hn-radius-sm);
 }
 
 td #more.link-highlight {
@@ -619,152 +840,205 @@ td #more.link-highlight {
 }
 
 #alert {
-  color: #dd4b39;
-  padding: 5px;
+  color: var(--hn-red);
+  padding: 8px 16px;
   text-align: center;
+  background: #fff0f0;
+  border-bottom: 1px solid #ffd0d0;
+  font-size: 13px;
 }
 
 #alert a {
-  color: #000;
+  color: var(--hn-red);
+  text-decoration: underline;
 }
 
 .mourning {
   border-top: 5px solid #000;
 }
 
+/* ===================== User profile ===================== */
+
 #user-profile td:first-child,
 body#poll-body form td:first-child,
 body#login-body tr#content form td:first-child {
-  color: #444;
+  color: var(--hn-text-secondary);
   padding-right: 1em;
 }
+
 #user-profile td:nth-child(2) {
   color: #000;
 }
+
 #user-profile.your-profile td p:first-of-type {
   margin-top: .5em;
 }
+
 #user-profile.your-profile td p {
-  margin-top: 0em;
+  margin-top: 0;
 }
+
 #user-profile.your-profile td span {
   margin-left: 1em;
 }
+
 #user-profile.your-profile .select-option {
   padding-top: 7px;
 }
+
 #user-profile a, .self-post-text a {
   text-decoration: underline !important;
 }
+
 #others-profile-submitted, #your-profile-change-password {
   padding-top: 2em;
 }
 
 form input[type="text"],
 form input[type="password"] {
-  padding: 3px;
+  padding: 6px 10px;
 }
+
+/* ===================== Login ===================== */
 
 body#login-body {
 }
-#login-body tr#content form{
+
+#login-body tr#content form {
   margin-top: 10px;
 }
+
 #login-body tr#content form input:not([type="submit"]) {
   width: 200px;
 }
+
 #login-body b {
   color: #000;
 }
+
 #login-body #login-msg {
-  color: #000;
+  color: var(--hn-red);
   font-style: italic;
   margin-left: 10px;
 }
+
 #login-body h1 {
   font-size: 130%;
-  color: #222;
+  color: var(--hn-text);
+  font-weight: 700;
 }
+
 #login-body a:hover {
   text-decoration: underline;
 }
 
-/* borders indicating new comments */
+/* ===================== New comment borders ===================== */
+
 .hnes-new-parent {
   border-left: 2px solid #bc9b85;
 }
+
 .hnes-new {
-  border-left: 2px solid #f60;
+  border-left: 2px solid var(--hn-orange);
 }
 
 .hnes-age,
 .hnes-actions {
-    margin-left: .5em;
-    font-size: 11px;
+  margin-left: .5em;
+  font-size: 11px;
 }
 
 .hnes-actions a:after {
-    content: " | ";
-    color: #000;
+  content: " | ";
+  color: var(--hn-border);
 }
 
 .hnes-actions a:last-child:after {
-    content: "";
+  content: "";
 }
 
 .hnes-actions:before {
-    content: "[ ";
+  content: "[ ";
 }
 
 .hnes-actions:after {
-    content: " ]";
+  content: " ]";
 }
 
-/* user tags */
+/* ===================== User tags ===================== */
+
 .hnes-tag, .hnes-tagText:not(:empty) {
-    cursor: pointer;
+  cursor: pointer;
 }
+
 .hnes-tag {
   margin-bottom: -3px;
+  opacity: 0.5;
+  transition: opacity var(--hn-transition);
 }
+
+.hnes-tag:hover {
+  opacity: 1;
+}
+
 .hnes-tagText:not(:empty) {
-  padding: 0 2px;
+  padding: 1px 6px;
   color: #000;
+  background: var(--hn-bg-alt);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
 }
+
 .hnes-tagEdit {
-    padding-left: 2px;
-    width: 120px;
-    margin: 0 4px;
-    display: none;
+  padding: 2px 6px;
+  width: 120px;
+  margin: 0 4px;
+  display: none;
+  font-size: 11px;
+  border: 1px solid var(--hn-orange) !important;
+  border-radius: var(--hn-radius-sm);
 }
+
 .hnes-tagImage {
   margin-right: 3px;
   margin-bottom: 3px;
 }
+
 .hnes-tag-cont.edit .hnes-tagText {
-    display: none;
+  display: none;
 }
+
 .hnes-tag-cont.edit .hnes-tagEdit {
-    display: initial;
+  display: initial;
 }
+
+/* ===================== HNES comments tree ===================== */
 
 #hnmain table.comment-tree {
   display: none;
 }
 
 #hnes-comments {
-  color: black;
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: 13px;
-  line-height: 1.5em;
+  color: #000;
+  font-family: var(--hn-font);
+  font-size: 14px;
+  line-height: 1.65em;
 }
 
 #hnes-comments a, #hnes-comments a:visited {
-  color: black;
+  color: var(--hn-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--hn-text-muted), transparent  70%);
 }
 
 #hnes-comments .permalink, #hnes-comments .permalink:visited {
-  color: rgb(102, 102, 102);
+  color: var(--hn-text-muted);
+}
+
+#hnes-comments .permalink:hover {
+  color: var(--hn-orange);
 }
 
 #hnes-comments .parent {
@@ -772,7 +1046,9 @@ body#login-body {
 }
 
 #hnes-comments .replies {
-  margin: 8px 0 0 30px;
+  margin: 6px 0 0 24px;
+  border-left: 1px solid var(--hn-border-light);
+  padding-left: 0;
 }
 
 .replies:empty {
@@ -780,21 +1056,26 @@ body#login-body {
 }
 
 .hnes-comment {
-  padding: 4px 8px 4px 8px;
-  margin: 0 0 16px 0;
+  padding: 6px 10px;
+  margin: 0 0 8px 0;
+  border-radius: var(--hn-radius-sm);
+  transition: background var(--hn-transition);
 }
 
 .hnes-comment header {
   display: flex;
-  font-size: 93%;
-  color: rgb(102, 102, 102);
+  align-items: center;
+  font-size: 12px;
+  color: var(--hn-text-muted);
 }
 
 .hnes-comment header > span, .hnes-comment header > a {
   margin-right: 4px;
 }
 
-.votearrow.voted, .voteblock.voted {;
+/* ===================== Vote arrows (CSS-drawn) ===================== */
+
+.votearrow.voted, .voteblock.voted {
   display: none;
 }
 
@@ -806,58 +1087,83 @@ body#login-body {
   display: none;
   width: 10px;
   height: 10px;
-  border: 0px;
+  border: 0;
   margin-top: 9px !important;
   margin-left: 1px;
   margin-right: 1px !important;
-  padding: 0px;
+  padding: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 10px;
 }
 
 .hnes-comment header a, .hnes-comment header span {
   margin-top: 4px;
 }
+
 .voteblock {
-  margin: 0px 1px 0px 1px !important;
-  padding: 0px;
-  border: 0px;
-  width: 10px;
-  height: 10px;
+  margin: 0 2px !important;
+  padding: 0;
+  border: 0;
+  width: 12px;
+  height: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
+
 .voteblock a {
   display: block;
-  margin-top: 0px;
+  margin-top: 0;
 }
+
 .voteblock .votearrow {
-  margin: 3px 1px 3px;
+  margin: 2px 1px;
 }
+
 .upvote.nodownvote {
   margin-top: 7px;
 }
 
-/*.hnes-comment .upvote, .hnes-comment .downvote {
-  font-size: 16px;
-}*/
-
-/*.hnes-comment .upvote {
-  display: block;
-  height: 10px;
-  width: 10px;
-  padding: 1px;
-  background: url('https://news.ycombinator.com/grayarrow.gif');
-  background-position: top center;
-  background-repeat: no-repeat;
-  background-origin: padding-box;
+/* CSS-drawn vote arrows for index pages */
+.up-arrow, .down-arrow {
+  width: 0;
+  height: 0;
+  cursor: pointer;
+  transition: opacity var(--hn-transition);
+  opacity: 0.4;
 }
-.hnes-comment .downvote {
-  display: block;
-  height: 10px;
-  width: 10px;
-  padding: 1px;
-  background: url('https://news.ycombinator.com/graydown.gif') no-repeat center;
-}*/
+
+.up-arrow {
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid var(--hn-text-muted);
+}
+
+.down-arrow {
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--hn-text-muted);
+}
+
+.up-arrow:hover, .down-arrow:hover {
+  opacity: 1;
+}
+
+.postlist-arrow {
+  margin: 0 auto;
+}
+
+.last-arrow {
+  margin-bottom: 6px;
+}
+
+/* ===================== Reply count / collapsed ===================== */
 
 .hnes-comment .reply-count {
   display: none;
+  color: var(--hn-text-muted);
 }
 
 .hnes-comment.collapsed .reply-count {
@@ -871,19 +1177,21 @@ body#login-body {
 
 .hnes-comment.level-odd,
 #hnes-comments.nolevels .hnes-comment {
-  background-color: #FFFFFD;
+  background-color: var(--hn-surface);
 }
 
 .hnes-comment.level-even {
-  background-color: #F6F6EF;
+  background-color: var(--hn-surface-even);
 }
 
 .hnes-comment:last-child {
-  margin: 0;
+  margin-bottom: 0;
 }
 
 .hnes-comment a:hover {
+  color: var(--hn-orange);
   text-decoration: underline;
+  text-decoration-color: var(--hn-orange);
 }
 
 .hnes-comment.collapsed > section {
@@ -891,7 +1199,8 @@ body#login-body {
 }
 
 .hnes-comment section.body {
-  margin-left: 34px;
+  margin-left: 24px;
+  margin-top: 4px;
 }
 
 .hnes-comment .collapser {
@@ -900,10 +1209,13 @@ body#login-body {
   margin-right: 4px;
   width: 14px;
   cursor: pointer;
+  color: var(--hn-text-muted);
+  font-size: 12px;
+  transition: color var(--hn-transition);
 }
 
 .hnes-comment .collapser:hover {
-  color: #f60;
+  color: var(--hn-orange);
 }
 
 .hnes-comment .collapser::after {
@@ -915,30 +1227,54 @@ body#login-body {
 }
 
 .hnes-comment footer {
-  font-size: smaller;
-  text-decoration: underline;
+  font-size: 11px;
+  text-decoration: none;
+  margin-top: 4px;
 }
 
-/* removes some extraneous spacing between comments as mentioned in issue #140 */
+.hnes-comment footer a {
+  color: var(--hn-text-muted);
+  margin-right: 8px;
+}
+
+.hnes-comment footer a:hover {
+  color: var(--hn-orange);
+}
+
 .comtr td {
-  padding: 0px;
+  padding: 0;
 }
 
-/* hide native comment collapse */
 .togg {
   display: none;
 }
 
 #content a:hover, #content a:visited:hover {
-  color: #f60 !important;
+  color: var(--hn-orange) !important;
 }
 
 #threads-body .morelink, #threads-body .morelink:hover {
   display: block;
   padding: 1em;
-  color: #f60;
+  color: var(--hn-orange);
   font-size: 16px;
+  text-decoration: none;
+  text-align: center;
 }
+
 #threads-body .morelink:hover {
   text-decoration: underline;
+}
+
+/* ===================== Misc ===================== */
+
+.input-help {
+  font-size: 12px;
+  color: var(--hn-text-secondary);
+  line-height: 1.5em;
+  max-width: 600px;
+}
+
+.select-option {
+  padding: 4px 0;
 }
