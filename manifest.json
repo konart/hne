@@ -1,0 +1,34 @@
+{
+   "background": {
+      "scripts": [ "background.js" ]
+   },
+   "content_scripts": [ {
+      "css": [ "style.css" ],
+      "matches": [ "http://news.ycombinator.com/*", "https://news.ycombinator.com/*", "http://news.ycombinator.net/*", "https://news.ycombinator.net/*", "http://hackerne.ws/*", "https://hackerne.ws/*", "http://news.ycombinator.org/*", "https://news.ycombinator.org/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "css": [ "style.css" ],
+      "js": [ "js/jquery-3.2.1.min.js", "js/linkify/jquery.linkify-1.0.js", "js/linkify/plugins/jquery.linkify-1.0-twitter.js", "js/hn.js" ],
+      "matches": [ "http://news.ycombinator.com/*", "https://news.ycombinator.com/*", "http://news.ycombinator.net/*", "https://news.ycombinator.net/*", "http://hackerne.ws/*", "https://hackerne.ws/*", "http://news.ycombinator.org/*", "https://news.ycombinator.org/*" ],
+      "run_at": "document_end"
+   }, {
+      "js": [ "js/jquery-3.2.1.min.js", "js/hn.js" ],
+      "matches": [ "http://hckrnews.com/*" ],
+      "run_at": "document_end"
+   } ],
+   "description": "Hacker News Enhanced.",
+   "icons": {
+      "128": "images/icon-128.png",
+      "16": "images/icon-16.png",
+      "48": "images/icon-48.png"
+   },
+   "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDOrcJ8f+KxguKzCiD6HO51eB+mP3zmjjL33XJ+5qvvM+s/AakzC8twSSBGzO1EBFsK1OPXa6fUXq6bRB5OBVJwjFOVXUXsgDTwetRmWzVUuq6eW6SopZQWnb6lNBjdEBsYj6sg/jT6j1F0c1gRnDLedWJzbdkOvib3dNeBYpHsxQIDAQAB",
+   "manifest_version": 2,
+   "name": "Hacker News Enhancement Suite",
+   "permissions": [ "storage", "unlimitedStorage" ],
+   "short_name": "HNES",
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "1.6.0.3",
+   "web_accessible_resources": [ "images/spin.gif", "images/unvote.gif", "images/tag.svg", "templates/comment.html" ]
+}
