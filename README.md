@@ -1,3 +1,11 @@
+# Hacker News Extended
+
+Hacker New Enhancement Suite fork.
+
+Everything below `## Original` title comes from the original README.md
+
+## Original
+
 Hacker News Enhancement Suite
 =============================
 
@@ -5,6 +13,7 @@ A Hacker News extension for Firefox and Chrome which changes lots of things.
 
 Features
 --------
+
 * Completely new style
 * Easy access to all pages
 * Enhanced comment threads
@@ -32,14 +41,15 @@ Features
 
 Firefox AMO link
 ----------------
-https://addons.mozilla.org/en-US/firefox/addon/hnes/
+<https://addons.mozilla.org/en-US/firefox/addon/hnes/>
 
 Chrome web store link
 ---------------------
-https://chrome.google.com/webstore/detail/bappiabcodbpphnojdiaddhnilfnjmpm
+<https://chrome.google.com/webstore/detail/bappiabcodbpphnojdiaddhnilfnjmpm>
 
 TODO
 ----
+
 * Options page
 * Put search in a better place + ajax auto-complete
 * Do something with un-threaded comment lists (e.g. best comments)
@@ -50,21 +60,25 @@ TODO
 
 Things I can't test
 -------
+
 I don't have enough karma to test down votes, creating polls, or topbar color
 
 Compatability
 -------
+
 I do not test this extension with any other extensions active on Hacker News so I cannot guarantee that it will play nice. If you come across an apparent bug please make sure that any other extension are disabled or please mention which ones are enabled in the bug report.
 
 License
 -------
+
 MIT License, see LICENSE
 
 Thanks
 ------
+
 Wayne Larson for hckrnews.com and permission to use code from his extension which displays new comments.
 
-@jarques for his HN+ extension (https://github.com/jarquesp/Hacker-News--) which was used as a starting point for this project.
+@jarques for his HN+ extension (<https://github.com/jarquesp/Hacker-News-->) which was used as a starting point for this project.
 
 Thanks to Samuel Stern (hatboysam) for the inline commenting.
 
