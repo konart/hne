@@ -360,7 +360,7 @@ class HNComments {
         nodeList[0] = { id: 'root', level: 0, children: [] };
 
         // record the OP so we can color their name orange
-        const original_poster_el = document.querySelector('.subtext .hnuser'),
+        const original_poster_el = document.querySelector('.subtext a[href^="user?id="]'),
             original_poster = original_poster_el ? original_poster_el.textContent : '';
         if (original_poster_el) {
             original_poster_el.classList.add('original_poster');
@@ -383,7 +383,7 @@ class HNComments {
                 ageEl = t.querySelector('.age a'),
                 age = ageEl ? ageEl.textContent : '',
                 permalinkUrl = ageEl ? ageEl.href : '',
-                userEl = t.querySelector('a.hnuser'),
+                userEl = t.querySelector('.comhead a[href^="user?id="]'),
                 username = userEl ? userEl.textContent : '',
                 userUrl = userEl ? userEl.href : '',
                 commentEl = t.querySelector('div.comment'),
