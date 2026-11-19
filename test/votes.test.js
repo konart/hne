@@ -112,16 +112,39 @@ test('downvote then unvote does NOT subtract again (the bug)', () => {
 });
 
 
-// --- myVote int inversion ---
+// --- legacy migration + exact author matching ---
 
-test('myVote=1 (upvote) → -myVote = -1 (correct unvote delta)', () => {
-    const myVote = 1;
-    assert.strictEqual(-myVote, -1);
+test('legacy string vote count migrates and accumulates', () => {
+    const w = setupVoteEnv(['alice']);
+    // old format: bare JSON number string, not {"votes": N}
+    w.chrome.storage.local._storage['alice'] = '1';
+    w.HN.upvoteUserData('alice', 1);
+    assert.strictEqual(getStoredVotes(w, 'alice'), 2,
+        'stored "1" must be read as votes: 1 and accumulate to 2, not overwrite to 1');
 });
 
-test('myVote=-1 (downvote) → -myVote = +1 (correct unvote delta)', () => {
-    const myVote = -1;
-    assert.strictEqual(-myVote, 1);
+test('upvote display only touches the exact author (arc vs arcfour)', () => {
+    const w = setupVoteEnv(['arc', 'arcfour']);
+    w.HN.upvoteUserData('arc', 1);
+    assert.strictEqual(getDisplayedScore(w, 'arc'), '1');
+    assert.strictEqual(isScoreVisible(w, 'arcfour'), false,
+        'substring author match must not write arcfour score');
+});
+
+// --- myVote direction inversion (through the storage round-trip) ---
+
+test('myVote=1 (upvote) undone by -myVote: net zero (storage round-trip)', () => {
+    const w = setupVoteEnv(['alice']);
+    w.HN.upvoteUserData('alice', +1);   // upvote applies +1
+    w.HN.upvoteUserData('alice', -1);   // unvote applies -(-1) = -1
+    assert.strictEqual(getStoredVotes(w, 'alice'), undefined);
+});
+
+test('myVote=-1 (downvote) undone by -myVote: net zero (storage round-trip)', () => {
+    const w = setupVoteEnv(['bob']);
+    w.HN.upvoteUserData('bob', -1);     // downvote applies -1
+    w.HN.upvoteUserData('bob', +1);     // unvote applies -(-1) = +1
+    assert.strictEqual(getStoredVotes(w, 'bob'), undefined);
 });
 
 

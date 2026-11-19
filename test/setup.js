@@ -6,9 +6,11 @@ const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
 
-function createEnv(html) {
+function createEnv(html, url) {
     const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>', {
-        url: 'https://hckrnews.com/',  // triggers the hckrnews branch (harmless with empty DOM)
+        // default to a neutral URL so HN.init() runs; tests that want the
+        // hckrnews branch pass its url explicitly
+        url: url || 'https://example.com/blank',
         runScripts: 'dangerously',
         pretendToBeVisual: true
     });
@@ -21,9 +23,11 @@ function createEnv(html) {
         storage: {
             local: {
                 get: function (key, cb) {
-                    const keys = typeof key === 'string'
-                        ? [key]
-                        : Array.isArray(key) ? key : Object.keys(key);
+                    const keys = key === null
+                        ? Object.keys(storage)
+                        : typeof key === 'string'
+                            ? [key]
+                            : Array.isArray(key) ? key : Object.keys(key);
                     const result = {};
                     for (const k of keys) {
                         result[k] = storage[k] !== undefined ? storage[k] : undefined;
@@ -32,6 +36,12 @@ function createEnv(html) {
                 },
                 set: function (obj, cb) {
                     Object.assign(storage, obj);
+                    if (cb) cb();
+                },
+                remove: function (keys, cb) {
+                    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+                        delete storage[k];
+                    });
                     if (cb) cb();
                 },
                 _storage: storage
@@ -57,11 +67,11 @@ function loadScript(window, srcPath) {
 
 /**
  * Full HNES environment: util.js + linkify.js + hn.js loaded.
- * The hckrnews.com branch runs harmlessly (empty DOM) so HN.init() is not called,
- * but the HN object is available for testing.
+ * Pass a real HN URL (e.g. https://news.ycombinator.com/item?id=1) to run
+ * HN.init() against the given markup.
  */
-function createHNEnv(html) {
-    const window = createEnv(html);
+function createHNEnv(html, url) {
+    const window = createEnv(html, url);
     loadScript(window, 'js/util.js');
     loadScript(window, 'js/linkify.js');
     loadScript(window, 'js/hn.js');
