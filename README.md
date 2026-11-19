@@ -4,6 +4,20 @@ Hacker New Enhancement Suite fork.
 
 Everything below `## Original` title comes from the original README.md
 
+## Development
+
+The content scripts (`js/util.js`, `js/linkify.js`, `js/hn.js`) are modern
+classic-script JavaScript (ES2023): `const`/`let`, arrow functions, template
+literals, promise-based `chrome.storage` and `fetch`. No build step — the
+files load as-is via `manifest.json`.
+
+```sh
+npm install
+npm test    # node:test + jsdom, mocked chrome APIs
+npm run lint  # eslint (flat config, eslint.config.js)
+```
+
+
 ## Original
 
 Hacker News Enhancement Suite

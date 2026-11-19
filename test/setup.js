@@ -18,11 +18,11 @@ function createEnv(html, url) {
     const { window } = dom;
     const storage = {};
 
-    // --- Chrome extension API mock ---
+    // --- Chrome extension API mock (MV3 promise-based storage) ---
     window.chrome = {
         storage: {
             local: {
-                get: function (key, cb) {
+                get: async (key) => {
                     const keys = key === null
                         ? Object.keys(storage)
                         : typeof key === 'string'
@@ -30,27 +30,23 @@ function createEnv(html, url) {
                             : Array.isArray(key) ? key : Object.keys(key);
                     const result = {};
                     for (const k of keys) {
-                        result[k] = storage[k] !== undefined ? storage[k] : undefined;
+                        if (storage[k] !== undefined) result[k] = storage[k];
                     }
-                    if (cb) cb(result);
+                    return result;
                 },
-                set: function (obj, cb) {
+                set: async (obj) => {
                     Object.assign(storage, obj);
-                    if (cb) cb();
                 },
-                remove: function (keys, cb) {
-                    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+                remove: async (keys) => {
+                    for (const k of Array.isArray(keys) ? keys : [keys]) {
                         delete storage[k];
-                    });
-                    if (cb) cb();
+                    }
                 },
                 _storage: storage
             }
         },
         runtime: {
-            getURL: function (p) {
-                return 'chrome-extension://fake/' + p.replace(/^\//, '');
-            }
+            getURL: (p) => 'chrome-extension://fake/' + p.replace(/^\//, '')
         }
     };
 
@@ -62,7 +58,13 @@ function createEnv(html, url) {
 
 function loadScript(window, srcPath) {
     const src = fs.readFileSync(path.resolve(srcPath), 'utf8');
-    window.eval(src);
+    // top-level const/let live in the eval's lexical scope, not on window;
+    // re-export the globals the tests reach for (content scripts share them
+    // across files in the browser, so window access is test-only plumbing)
+    window.eval(`${src}
+;if (typeof HN !== 'undefined') window.HN = HN;
+if (typeof CommentTracker !== 'undefined') window.CommentTracker = CommentTracker;
+if (typeof HNComments !== 'undefined') window.HNComments = HNComments;`);
 }
 
 /**

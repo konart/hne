@@ -4,13 +4,13 @@
  */
 
 /** querySelector — returns first match or null */
-function $(selector, root) {
-    return (root || document).querySelector(selector);
+function $(selector, root = document) {
+    return root.querySelector(selector);
 }
 
 /** querySelectorAll — returns a real Array (not a NodeList) for safe .map/.forEach */
-function $$(selector, root) {
-    return Array.from((root || document).querySelectorAll(selector));
+function $$(selector, root = document) {
+    return Array.from(root.querySelectorAll(selector));
 }
 
 /**
@@ -31,13 +31,18 @@ function $$(selector, root) {
 function createEl(html) {
     if (html && html.nodeType) return html;  // already a DOM element — pass-through
 
-    var template = document.createElement('template');
+    const template = document.createElement('template');
     template.innerHTML = html;
-    var wrapper = document.createElement('div');
-    while (template.content.firstChild) {
-        wrapper.appendChild(template.content.firstChild);
-    }
+    const wrapper = document.createElement('div');
+    wrapper.append(...template.content.childNodes);
     return wrapper;
+}
+
+/** Create a plain element — cheaper than createEl() for single tags (no HTML parse). */
+function el(tag, className) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
 }
 
 /**
@@ -45,17 +50,18 @@ function createEl(html) {
  * @param {Element|Document} root      - element to attach listener to
  * @param {string}            type     - event type ('click', 'keyup', etc.)
  * @param {string}            selector - CSS selector to match (uses closest())
- * @param {Function}          handler  - receives the matched element via e.target.closest(selector)
+ * @param {Function}          handler  - invoked with `this` bound to the matched element;
+ *                                       use function() {}, not an arrow, to access `this`
  */
 function on(root, type, selector, handler) {
-    root.addEventListener(type, function(e) {
-        var el = e.target.closest(selector);
-        if (el) handler.call(el, e);
+    root.addEventListener(type, (e) => {
+        const target = e.target.closest(selector);
+        if (target) handler.call(target, e);
     });
 }
 
 /** Find elements matching selector that contain the given text (substring match on textContent).
  *  Replaces jQuery's $('.selector:contains(text)') pseudo-selector. */
 function $contains(selector, text, root) {
-    return $$(selector, root).filter(function(el) { return el.textContent.includes(text); });
+    return $$(selector, root).filter((node) => node.textContent.includes(text));
 }
