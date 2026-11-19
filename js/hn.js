@@ -1539,6 +1539,21 @@ var HN = {
         $$('td[align="right"]').forEach(function(el) { el.remove(); });
     },
 
+    collectActions: function(subtext) {
+        // collect action links into hnes-actions span
+        var actionsSpan = createEl('<span class="hnes-actions"></span>').firstElementChild;
+        var flagLinks = subtext.querySelectorAll('a[href^="flag"]');
+        var vouchLinks = subtext.querySelectorAll('a[href^="vouch"]');
+        var algoliaLinks = subtext.querySelectorAll('a[href^="https://hn.algolia.com/?query="]');
+        var hideLinks = subtext.querySelectorAll('a[href^="hide"]');
+        var googleLinks = subtext.querySelectorAll('a[href^="https://www.google.com/search?q="]');
+        var faveLinks = subtext.querySelectorAll('a[href^="fave"]');
+        [flagLinks, vouchLinks, algoliaLinks, hideLinks, googleLinks, faveLinks].forEach(function(links) {
+            links.forEach(function(link) { actionsSpan.appendChild(link); });
+        });
+        return actionsSpan;
+    },
+
     formatScore: function() {
         $$('.subtext').forEach(function(subtext) {
             var score = subtext.querySelector('span.score');
@@ -1559,13 +1574,11 @@ var HN = {
                 }
             }
 
-            // scoreless, comment-less rows (e.g. job posts) keep their native
-            // subtext row, but transformed rows form a 4-column grid
-            // [comments, score, votelinks, title] (removeNumbers already
-            // deleted the rank cells); a job row's [spacer, title] would drop
-            // its title into the 64px score column and wrap into a block.
-            // Pad the row so its title lands in the title column, and span
-            // the subtext across votelinks+title.
+            // scoreless, comment-less rows (e.g. job posts): transformed rows
+            // form a 4-column grid [comments, score, votelinks, title] with the
+            // subtext row removed and its age/actions inlined into the title
+            // cell. Do the same here so job rows stay single-line: pad the row
+            // to the grid, inline age + action links, drop the native subtext.
             if (!score && !comments) {
                 var titleRow = subtext.parentElement.previousElementSibling;
                 if (titleRow && titleRow.children.length === 2 &&
@@ -1574,7 +1587,16 @@ var HN = {
                         createEl('<td colspan="2"></td>').firstElementChild,
                         titleRow.firstChild);
                 }
-                subtext.setAttribute('colspan', '2');
+                var jobTitleTd = titleRow ? titleRow.querySelector('td.title') : null;
+                if (jobTitleTd) {
+                    var jobAgeSpan = createEl('<span class="hnes-age"></span>').firstElementChild;
+                    if (at) jobAgeSpan.textContent = at.textContent;
+                    jobTitleTd.appendChild(jobAgeSpan);
+                    jobTitleTd.appendChild(HN.collectActions(subtext));
+                }
+                var jobSpacer = subtext.parentElement.nextElementSibling;
+                if (jobSpacer && jobSpacer.children.length === 0) jobSpacer.remove();
+                subtext.parentElement.remove();
                 return;
             }
 
@@ -1637,16 +1659,7 @@ var HN = {
             }
 
             // collect action links into hnes-actions span
-            var actionsSpan = createEl('<span class="hnes-actions"></span>').firstElementChild;
-            var flagLinks = subtext.querySelectorAll('a[href^="flag"]');
-            var vouchLinks = subtext.querySelectorAll('a[href^="vouch"]');
-            var algoliaLinks = subtext.querySelectorAll('a[href^="https://hn.algolia.com/?query="]');
-            var hideLinks = subtext.querySelectorAll('a[href^="hide"]');
-            var googleLinks = subtext.querySelectorAll('a[href^="https://www.google.com/search?q="]');
-            var faveLinks = subtext.querySelectorAll('a[href^="fave"]');
-            [flagLinks, vouchLinks, algoliaLinks, hideLinks, googleLinks, faveLinks].forEach(function(links) {
-                links.forEach(function(link) { actionsSpan.appendChild(link); });
-            });
+            var actionsSpan = HN.collectActions(subtext);
             if (by_el.parentElement) {
                 by_el.insertAdjacentElement('afterend', actionsSpan);
             }

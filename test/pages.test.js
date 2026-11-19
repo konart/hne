@@ -133,9 +133,12 @@ test('jobs page: no fake score, no self-referential comments link, blurb extract
     assert.ok(blurb, 'blurb should be extracted');
     assert.ok(!/More/.test(blurb.textContent), `blurb must not contain 'More': "${blurb.textContent}"`);
 
-    // job rows keep their native age subtext
-    const ages = d.querySelectorAll('td.subtext .age a');
-    assert.ok(ages.length >= 3, `job ages preserved, got ${ages.length}`);
+    // job rows: age + actions inlined into the title cell (single-line rows,
+    // same layout as transformed story rows); native subtext rows removed
+    const ages = d.querySelectorAll('.hnes-age');
+    assert.ok(ages.length >= 3, `job ages inlined, got ${ages.length}`);
+    assert.strictEqual(d.querySelectorAll('td.subtext').length, 0,
+        'native subtext rows must be consumed, not left as second lines');
 
     // P0 #3 regression: no score parsed from "1 hour ago", no href="" comments link
     assert.strictEqual(d.querySelectorAll('td .score').length, 0,
@@ -184,12 +187,17 @@ test('news feed: job-posting row keeps natural cell widths', async () => {
     assert.strictEqual(colPos(jobTitle), 4,
         'job title must align with the story title column, not wrap in a narrow one');
 
-    // job subtext spans the remaining columns instead of a narrow cell
-    const jobSubtext = [...d.querySelectorAll('td.subtext')]
-        .find(td => !td.querySelector('.score') && td.querySelector('.age'));
-    assert.ok(jobSubtext, 'job subtext preserved');
-    assert.strictEqual(jobSubtext.colSpan, 2, 'job subtext spans votelinks+title columns');
-    assert.strictEqual(colPos(jobSubtext), 3);
+    // age + action links are inlined into the title cell, single line like
+    // every transformed row — the native subtext row is gone
+    assert.ok(![...d.querySelectorAll('td.subtext')]
+        .some(td => td.querySelector('a[href^="item?id=50545238"]') ||
+                    td.querySelector('a[href*="50545238"]')),
+        'job subtext row must be removed');
+    const jobAge = jobTitle.querySelector('.hnes-age');
+    assert.ok(jobAge && jobAge.textContent.includes('1 day ago'),
+        'job age inlined into title cell');
+    const jobHide = jobTitle.querySelector('.hnes-actions a[href^="hide"]');
+    assert.ok(jobHide, 'job hide link moved into hnes-actions in title cell');
 
     // spacer removal must not eat the row after a job row
     assert.ok(d.querySelector('[id="2"]'),
