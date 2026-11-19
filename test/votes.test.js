@@ -183,3 +183,39 @@ test('voting on alice does not affect bob', () => {
     assert.strictEqual(getStoredVotes(w, 'alice'), 2);
     assert.strictEqual(getStoredVotes(w, 'bob'), -1);
 });
+
+
+// --- new-comment highlight uses numeric ids ---
+
+test('new-comment highlight compares ids numerically, not as strings', () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/item?id=1');
+    const d = w.document;
+
+    // two comment shells: an old 7-digit id and a new 8-digit id
+    const make = (id) => {
+        const el = d.createElement('div');
+        el.className = 'hnes-comment';
+        el.id = id;
+        d.body.appendChild(el);
+        return el;
+    };
+    const oldEl = make('9999999');
+    const newEl = make('10000000');
+
+    // node map mirroring what renderComment builds (highlightNewComments
+    // only reads HN.hnComments.nodeMap[id].el/.parent/.level)
+    w.HN.hnComments = {
+        nodeMap: {
+            '9999999': { el: oldEl, parent: null, level: 1 },
+            '10000000': { el: newEl, parent: null, level: 1 }
+        }
+    };
+
+    // regression: string comparison '10000000' > '9999999' is FALSE,
+    // so with the bug the genuinely new 8-digit comment was never highlighted
+    w.CommentTracker.highlightNewComments(9999999);
+    assert.ok(newEl.classList.contains('hnes-new'),
+        '8-digit id must be recognized as newer than stored 7-digit id');
+    assert.ok(!oldEl.classList.contains('hnes-new'));
+});

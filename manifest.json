@@ -21,7 +21,7 @@
       "run_at": "document_end"
    }, {
       "js": [ "js/util.js", "js/hn.js" ],
-      "matches": [ "https://hckrnews.com/*", "http://hckrnews.com/*" ],
+      "matches": [ "https://hckrnews.com/*" ],
       "run_at": "document_end"
    } ],
    "web_accessible_resources": [ {

@@ -287,7 +287,12 @@ class HNComments {
                 commentColor = commtextEl ? (commtextEl.classList[1] || 'c00') : 'c00',
                 comheadEl = t.querySelector('span.comhead'),
                 comheadText = comheadEl ? comheadEl.textContent : '',
-                isDead = comheadText.includes('[dead]') || comheadText.includes('[flagged]'),
+                // HN marks dead/flagged comments either as a text node inside
+                // span.comhead or as the whole comment body when showdead is off:
+                // <div class="comment noshow">[flagged]</div>
+                commentBodyText = commentEl ? commentEl.textContent : '',
+                isDead = comheadText.includes('[dead]') || comheadText.includes('[flagged]') ||
+                    commentBodyText.includes('[dead]') || commentBodyText.includes('[flagged]'),
                 scoreEl = t.querySelector('span.score'),
                 score = scoreEl ? scoreEl.textContent : '';
 
@@ -759,7 +764,6 @@ var HN = {
 
             var morelink = document.querySelector('.morelink');
             if (morelink) {
-                var morelink_href = morelink.href;
                 $('#content').insertAdjacentElement('afterend', morelink);
             }
 
@@ -791,7 +795,6 @@ var HN = {
 
             var morelink = document.querySelector('.morelink');
             if (morelink) {
-                var morelink_href = morelink.href;
                 newtable.parentElement.appendChild(morelink);
             }
 
@@ -1421,8 +1424,7 @@ var HN = {
         });
 
         on(document, 'keyup', '.hnes-tagEdit', function(e) {
-            var code = e.keyCode || e.which,
-                parent = this.parentElement,
+            var parent = this.parentElement,
                 gp = parent ? parent.parentElement : null;
 
             var finishEdit = function() {
@@ -1430,7 +1432,7 @@ var HN = {
                 this.remove();
             }.bind(this);
 
-            if (code === 13) { // Enter
+            if (e.key === 'Enter') {
                 if (gp) {
                     var authorEl = gp.querySelector('a');
                     var author = authorEl ? authorEl.textContent : '';
@@ -1438,7 +1440,7 @@ var HN = {
                 }
                 finishEdit();
             }
-            if (code === 27) { // Escape
+            if (e.key === 'Escape') {
                 finishEdit();
             }
         });
@@ -2037,7 +2039,7 @@ else {
 
     onReady(function() {
         try {
-            if (document.body.textContent.trim() == "Unknown or expired link.") {
+            if (document.body.textContent.includes("Unknown or expired link.")) {
                 HN.setLocalStorage('expired', true);
                 window.location.replace("/");
                 return;

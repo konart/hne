@@ -24,6 +24,10 @@
   --hn-red: #d73937;
   --hn-black: #000000;
   --hn-orange-text: #ad5000;  /* AA (>=4.5:1) on all light surfaces; hovers use --hn-orange */
+  --hn-heat-mild: #552200;
+  --hn-heat-medium: #aa4400;
+  --hn-alert-bg: #fff0f0;
+  --hn-alert-border: #ffd0d0;
   --hn-radius: 6px;
   --hn-radius-sm: 4px;
   --hn-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
@@ -52,6 +56,10 @@
     --hn-green: #5cb85c;
     --hn-red: #e06666;
     --hn-select-bg: #2c3a52;
+    --hn-heat-mild: #d9a066;
+    --hn-heat-medium: #ff9d45;
+    --hn-alert-bg: #3a2222;
+    --hn-alert-border: #5a2e2e;
   }
 }
 
@@ -234,7 +242,7 @@ table tr td {
 }
 
 .newcomments {
-  color: var(--hn-black);
+  color: var(--hn-text);
 }
 
 a.comments:hover {
@@ -250,7 +258,7 @@ a.comments:hover {
 }
 
 .nav-links a {
-  color: #222;
+  color: var(--hn-text);
   padding-left: 8px;
   padding-right: 8px;
   text-decoration: none;
@@ -375,12 +383,20 @@ body#item-body .title {
 }
 
 .item-header tr:nth-child(3) td {
-  color: #000 !important;
+  color: var(--hn-text) !important;
 }
 
 a:link {
-  color: #202020;
+  color: var(--hn-text);
   text-decoration: none;
+}
+
+/* selected story row: story/author links sit on the light-blue background
+   (light scheme) — force maximum contrast, never the muted palette */
+#index-body #content tr.on_story a:link,
+#index-body #content tr.on_story .subtext,
+#index-body #content tr.on_story .subtext a {
+  color: var(--hn-text) !important;
 }
 
 /* ===================== Buttons & inputs ===================== */
@@ -464,7 +480,7 @@ font[color="#ff6600"] {
 }
 
 .comhead {
-  color: #000;
+  color: var(--hn-text);
   font-size: 11px !important;
 }
 
@@ -492,7 +508,7 @@ div > .comhead {
 #loading_comments {
   margin: 1em;
   padding: 1em;
-  color: #000;
+  color: var(--hn-text);
   background-color: var(--hn-surface);
   border-radius: var(--hn-radius-sm);
 }
@@ -522,7 +538,7 @@ div > .comhead {
 
 .pagetop a:hover,
 .pagetop a:active {
-  color: #000;
+  color: var(--hn-text);
 }
 
 /* ===================== Footer ===================== */
@@ -571,7 +587,7 @@ textarea {
 }
 
 form textarea {
-  background: #fff;
+  background: var(--hn-surface);
   font-size: 14px;
   padding: 10px;
   height: 80px;
@@ -611,7 +627,7 @@ input[name="q"]::placeholder {
 
 input[name="q"]:focus {
   color: var(--hn-text) !important;
-  background: #fff;
+  background: var(--hn-surface);
   border-color: rgba(255,255,255,0.6) !important;
   box-shadow: 0 0 0 3px rgba(255,255,255,0.2) !important;
 }
@@ -631,14 +647,14 @@ br {
 }
 
 .default a:link {
-  color: #000;
+  color: var(--hn-text);
 }
 
 /* ===================== User highlighting ===================== */
 
 #item-body .comhead a.commenter,
 #threads-body .comhead a.commenter {
-  color: #000 !important;
+  color: var(--hn-text) !important;
   font-weight: 600;
 }
 
@@ -669,7 +685,7 @@ a.dead {
   width: 100%;
   max-width: 800px;
   line-height: 1.7em;
-  color: #1a1a1a;
+  color: var(--hn-text);
 }
 
 .comment, .dead {
@@ -725,24 +741,11 @@ pre {
 
 
 a[href^="reply"]:visited {
-  color: #000;
+  color: var(--hn-text);
 }
 
 form input[type="submit"] {
   display: block;
-}
-
-/* ===================== Options bar ===================== */
-
-#options_bar {
-  position: fixed;
-  bottom: 0;
-  background: #fff;
-  padding: 8px 16px;
-  border-top: 1px solid var(--hn-border);
-  width: 100%;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
-  font-size: 12px;
 }
 
 td::selection,
@@ -769,42 +772,18 @@ form[action="/r"] input[type="submit"] {
   margin: 0;
 }
 
-#submit-overlay {
-  position: absolute;
-  background: #fff;
-  padding: 24px;
-  z-index: 100;
-  width: 535px;
-  margin: 20px 0 0 150px;
-  display: none;
-  border-radius: var(--hn-radius);
-  box-shadow: var(--hn-shadow-lg);
-}
-
-#overlay-bg {
-  background: #000;
-  opacity: .5;
-  width: 4000px;
-  height: 4000px;
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 99;
-  display: none;
-}
-
 /* ===================== HN Heat ===================== */
 
 .no-heat {
-  color: #000 !important;
+  color: var(--hn-text) !important;
 }
 
 .mild {
-  color: #520 !important;
+  color: var(--hn-heat-mild) !important;
 }
 
 .medium {
-  color: #a40 !important;
+  color: var(--hn-heat-medium) !important;
 }
 
 .hot {
@@ -856,8 +835,8 @@ td #more.link-highlight {
   color: var(--hn-red);
   padding: 8px 16px;
   text-align: center;
-  background: #fff0f0;
-  border-bottom: 1px solid #ffd0d0;
+  background: var(--hn-alert-bg);
+  border-bottom: 1px solid var(--hn-alert-border);
   font-size: 13px;
 }
 
@@ -880,7 +859,7 @@ body#login-body tr#content form td:first-child {
 }
 
 #user-profile td:nth-child(2) {
-  color: #000;
+  color: var(--hn-text);
 }
 
 #user-profile.your-profile td p:first-of-type {
@@ -926,7 +905,7 @@ body#login-body {
 }
 
 #login-body b {
-  color: #000;
+  color: var(--hn-text);
 }
 
 #login-body #login-msg {
@@ -997,7 +976,7 @@ body#login-body {
 
 .hnes-tagText:not(:empty) {
   padding: 1px 6px;
-  color: #000;
+  color: var(--hn-text);
   background: var(--hn-bg-alt);
   border-radius: 10px;
   font-size: 10px;
@@ -1035,7 +1014,7 @@ body#login-body {
 
 
 #hnes-comments {
-  color: #000;
+  color: var(--hn-text);
   font-family: var(--hn-font);
   font-size: 14px;
   line-height: 1.65em;
@@ -1145,6 +1124,24 @@ body#login-body {
   margin: 2px 1px;
 }
 
+/* arrow shape — without a sized, colored box the vote anchors are invisible */
+.votearrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--hn-text-muted);
+  transition: border-color var(--hn-transition);
+}
+
+.votearrow:hover {
+  border-bottom-color: var(--hn-orange);
+}
+
+.votearrow.rotate180 {
+  transform: rotate(180deg);
+}
+
 .upvote.nodownvote {
   margin-top: 7px;
 }
@@ -1157,7 +1154,7 @@ body#login-body {
 }
 
 .hnes-comment.collapsed .reply-count {
-  color: #000;
+  color: var(--hn-text);
   display: initial;
 }
 

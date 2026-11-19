@@ -55,7 +55,7 @@ test('item page: comments render, collapser is keyboard-accessible', async () =>
 
     // comments were rendered from native markup
     const rendered = d.querySelectorAll('#hnes-comments .hnes-comment');
-    assert.ok(rendered.length === 3, `expected 3 comments, got ${rendered.length}`);
+    assert.ok(rendered.length === 4, `expected 4 comments, got ${rendered.length}`);
 
     // nested levels preserved
     assert.ok(d.querySelector('#hnes-comments .hnes-comment .hnes-comment .hnes-comment'),
@@ -79,6 +79,17 @@ test('item page: comments render, collapser is keyboard-accessible', async () =>
     // loading indicator hidden
     const loading = d.getElementById('loading_comments');
     assert.ok(!loading || loading.classList.contains('hidden'));
+});
+
+test('item page: [flagged] comment author is marked dead', async () => {
+    // live HN emits the marker inside span.comhead:
+    // ...<span id="unv_N"></span> [flagged] <span class="navs">...
+    const w = await loadFixture('item', `${HN_URL}/item?id=50552424`);
+    const d = w.document;
+    const flagged = d.querySelector('[id="50557200"] .author a');
+    assert.ok(flagged, 'flagged comment rendered');
+    assert.ok(flagged.classList.contains('dead'),
+        '[flagged] comment author must carry the .dead class');
 });
 
 test('item page: collapsing persists with a timestamp and stale entries are pruned', async () => {
@@ -150,4 +161,78 @@ test('linkified about text cannot inject attributes', async () => {
     assert.strictEqual(a.getAttributeNames().join(','), 'href',
         'no injected attributes');
     assert.ok(!a.hasAttribute('onmouseover'));
+});
+
+test('index page: keyboard shortcuts ignore modifier keys and focused inputs', async () => {
+    const w = await loadFixture('index', `${HN_URL}/news`);
+    const d = w.document;
+
+    // first 'j' selects the first story row
+    d.body.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'j', bubbles: true }));
+    assert.ok(d.querySelector('.on_story'), 'bare j selects a story');
+    d.querySelector('.on_story').classList.remove('on_story');
+
+    // ⌘C must NOT open comments in a new tab (regression: metaKey was ignored)
+    let opened = null;
+    w.window.open = (url) => { opened = url; return {}; };
+    d.body.dispatchEvent(new w.KeyboardEvent('keydown',
+        { key: 'c', metaKey: true, bubbles: true }));
+    assert.strictEqual(opened, null, '⌘C must not trigger window.open');
+
+    // alt+c likewise
+    d.body.dispatchEvent(new w.KeyboardEvent('keydown',
+        { key: 'c', altKey: true, bubbles: true }));
+    assert.strictEqual(opened, null, 'alt+C must not trigger window.open');
+
+    // typing in any focused input must not navigate (event targets the input)
+    const input = d.querySelector('input[name="q"]');
+    input.focus();
+    input.dispatchEvent(new w.KeyboardEvent('keydown',
+        { key: 'j', bubbles: true }));
+    assert.strictEqual(d.querySelector('.on_story'), null,
+        'shortcuts disabled while an input is focused');
+});
+
+test('item page: failed vote request falls back instead of crashing', async () => {
+    const w = await loadFixture('item', `${HN_URL}/item?id=50552424`);
+    const d = w.document;
+
+    const c = w.HN.hnComments.nodeMap['50556084'];
+    assert.ok(c, 'comment node present');
+    c.el = d.getElementById('50556084');
+
+    const origXHR = w.XMLHttpRequest;
+    const xhrResponse = { text: '' };
+    w.XMLHttpRequest = function () {
+        return {
+            open() {},
+            send() {
+                this.status = 200;
+                this.responseText = xhrResponse.text;
+                this.onload && this.onload({});
+            }
+        };
+    };
+
+    // login-expired style reply: no unvote url in the response body.
+    // Before the fix this path did match(...)[0] on null → TypeError and a
+    // permanently stale arrow.
+    xhrResponse.text = '<html><body>Login required.</body></html>';
+    c.upVoteUrl = '#vote?id=50556084&how=up'; // hash navigation is observable in jsdom
+    assert.doesNotThrow(() => w.HN.hnComments.voteRequest(c, 1),
+        'non-success vote response must not throw');
+    assert.strictEqual(w.location.hash, '#vote?id=50556084&how=up',
+        'falls back to HN navigation when no unvote url is extractable');
+    assert.ok(!c.el.querySelector('.voteblock').classList.contains('voted'),
+        'arrow must not be marked voted on failure');
+
+    // success reply: unvote url extracted, arrow marked, vote stored
+    xhrResponse.text = "<html><a id='un_50556084' href='vote?id=50556084&amp;how=un&amp;goto=item%3Fid%3D50552424%2350556084'>unvote</a></html>";
+    w.HN.hnComments.voteRequest(c, 1);
+    assert.strictEqual(c.myVote, 1);
+    assert.ok(c.el.querySelector('.voteblock').classList.contains('voted'));
+    assert.ok(c.el.querySelector('a.unvote').getAttribute('href').includes('how=un'));
+    assert.strictEqual(JSON.parse(w.chrome.storage.local._storage['HJain13']).votes, 1);
+
+    w.XMLHttpRequest = origXHR;
 });
