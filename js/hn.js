@@ -15,128 +15,6 @@
 * Under MIT license, see LICENSE
 */
 
-var InlineReply = {
-    init: function() {
-        $$('a[href^="reply?"]').forEach(function(replyLink) {
-            replyLink.addEventListener('click', function(e) {
-                if (HN.isLoggedIn()) {
-                    e.preventDefault();
-                }
-                else {
-                    return;
-                }
-
-                //make sure there's no stray underlining between Reply and Cancel
-                this.classList.add('underlined');
-                if (this.parentElement.tagName === 'U') {
-                    this.parentElement.parentElement.replaceChild(this, this.parentElement);
-                }
-
-                /*remove the 'reply' link without actually hide()ing it because it
-                  doesn't work that way with collapsible comments*/
-                this.style.display = 'none';
-
-                domain = window.location.origin;
-                link = domain + '/' + this.getAttribute('href');
-
-                var next = this.nextElementSibling;
-                if (next && next.classList.contains('reply_form')) {
-                    next.style.display = '';
-                }
-                else {
-                    //add buttons and box
-                    var formHtml = '<div class="reply_form"> \
-          <textarea rows="4" cols="60"></textarea> \
-          <input type="submit" value="Reply" class="rbutton"/> \
-          <input type="submit" value="Cancel" class="cbutton"/> \
-          </div>';
-                    this.insertAdjacentHTML('afterend', formHtml);
-                    this.parentElement.querySelector('.rbutton').setAttribute('data', link);
-                }
-            });
-        });
-
-        /* Reply button — delegated since reply forms are created dynamically */
-        on(document, 'click', '.rbutton', function(e) {
-            e.preventDefault();
-            link = this.getAttribute('data');
-            text = this.previousElementSibling.value;
-            //Hide cancel button and change reply text
-            this.nextElementSibling.style.display = 'none';
-            this.disabled = true;
-            this.value = "Posting...";
-            //Add loading spinner
-            var image = createEl('<img style="vertical-align:middle;margin-left:5px;"/>').firstElementChild;
-            image.src = chrome.runtime.getURL("images/spin.gif");
-            this.insertAdjacentElement('afterend', image);
-            //Post
-            InlineReply.postCommentTo(link, domain, text, this);
-        });
-
-        /* Cancel button — delegated */
-        on(document, 'click', '.cbutton', function(e) {
-            InlineReply.hideButtonAndBox(this.previousElementSibling);
-        });
-    },
-
-    postCommentTo: function(link, domain, text, button) {
-        InlineReply.disableButtonAndBox(button);
-        fetch(link, { headers: { 'Accept': 'text/html' } })
-            .then(function(resp) { return resp.text(); })
-            .then(function(html) {
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                fnid = doc.querySelector('input[name="parent"]').value;
-                whence = doc.querySelector('input[name="goto"]').value;
-                hmac = doc.querySelector('input[name="hmac"]').value;
-                InlineReply.sendComment(domain, fnid, whence, hmac, text);
-            })
-            .catch(function(error) {
-                InlineReply.enableButtonAndBox(button);
-            });
-    },
-
-    sendComment: function(domain, fnidarg, whencearg, hmacarg, textarg) {
-        var body = new URLSearchParams();
-        body.set('parent', fnidarg);
-        body.set('goto', whencearg);
-        body.set('hmac', hmacarg);
-        body.set('text', textarg);
-        fetch(domain + "/comment", {
-            method: 'POST',
-            body: body,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        }).finally(function() {
-            window.location.reload();
-        });
-    },
-
-    disableButtonAndBox: function(button) {
-        button.disabled = true;
-        if (button.nextElementSibling) button.nextElementSibling.disabled = true;
-        if (button.previousElementSibling) button.previousElementSibling.disabled = true;
-    },
-
-    enableButtonAndBox: function(button) {
-        button.disabled = false;
-        if (button.nextElementSibling) button.nextElementSibling.disabled = false;
-        if (button.previousElementSibling) button.previousElementSibling.disabled = false;
-    },
-
-    hideButtonAndBox: function(button) {
-        var button_and_box = button.parentElement;
-        var reply_link = button_and_box.previousElementSibling;
-        var textbox = button_and_box.querySelector('textarea');
-        if (textbox.value.length > 0) {
-            reply_link.textContent = "reply (saved)";
-        }
-        else {
-            reply_link.textContent = "reply";
-        }
-        reply_link.style.display = 'inline';
-        button_and_box.style.display = 'none';
-    }
-}
-
 var CommentTracker = {
     init: function() {
         var page_info = CommentTracker.getInfo();
@@ -154,7 +32,7 @@ var CommentTracker = {
             var id = comments[i].getAttribute('id');
             var comment = HN.hnComments.nodeMap[id];
 
-            if (id > last_id) {
+            if (Number(id) > Number(last_id)) {
                 comment.el.classList.remove('hnes-new-parent')
                 comment.el.classList.add('hnes-new')
                 comment = comment.parent;
@@ -169,11 +47,22 @@ var CommentTracker = {
     },
 
     getInfo: function() {
+        // find the 'n comments' / 'discuss' link — never assume it is the last
+        // anchor in .subtext (logged-in users get hide/past/favorite after it)
         var comment_info_as = document.querySelectorAll('.subtext a');
-        var comment_info_el = comment_info_as[comment_info_as.length - 1];
+        var comment_info_el = null;
+        for (var i = comment_info_as.length - 1; i >= 0; i--) {
+            var a = comment_info_as[i];
+            var href = a.getAttribute('href') || '';
+            var text = a.textContent.trim();
+            if (/^item\?id=\d+/.test(href) && (text === 'discuss' || /\d\s*comments?/.test(text))) {
+                comment_info_el = a;
+                break;
+            }
+        }
 
         // if there is no 'discuss' or 'n comment(s)' link it's some other kind of page (e.g. profile)
-        if (!comment_info_el || comment_info_el.length == 0) {
+        if (!comment_info_el) {
             return {
                 "id": window.location.pathname + window.location.search,
                 "num": 0,
@@ -182,16 +71,16 @@ var CommentTracker = {
         }
 
         var page_id = comment_info_el.href.match(/id=(\d+)/);
-        if (page_id.length) {
+        if (page_id) {
             page_id = Number(page_id[1]);
         }
         else {
-            page_id = window.location.search.match(/id=(\d+)/);
-            console.error('NO PAGEID', page_id);
+            var loc_id = window.location.search.match(/id=(\d+)/);
+            page_id = loc_id ? Number(loc_id[1]) : window.location.pathname + window.location.search;
         }
 
         var comment_info_text = comment_info_el.textContent;
-        var comment_num = comment_info_text.split(" ")[0];
+        var comment_num = comment_info_text.split(" ")[0];
         if (comment_num) {
             comment_num = Number(comment_num);
         }
@@ -238,7 +127,7 @@ var CommentTracker = {
             if (href) {
                 var idMatch = href.match(/id=(\d+)/);
                 if (idMatch) {
-                    id = Number(idMatch[1]);
+                    var id = Number(idMatch[1]);
                 }
                 else {
                     //For some reason, the link we are processing is not to an HN comment section
@@ -267,33 +156,28 @@ var CommentTracker = {
     }
 }
 
-var unvoteImg = chrome.runtime.getURL("images/unvote.gif");
-
 class HNComments {
     constructor(storyId) {
         var injector = document.createElement('div');
         injector.innerHTML = `
       <template id="hnes-comment-tmpl">
-          <div id="" class="hnes-comment" data-hnes-level="">
+          <div id="" class="hnes-comment">
               <header>
-                  <!--<span class="voter"><a href="#" class="upvote"></a><a href="#" class="downvote"></a></span>-->
                   <span class="voteblock">
-                    <a href="#" class="upvoter votearrow upvote" title="Upvote"></a>
-                    <a href="#" class="downvoter votearrow rotate180 downvote" title="Downvote"></a>
+                    <a href="#" class="upvoter votearrow upvote" title="Upvote" aria-label="Upvote"></a>
+                    <a href="#" class="downvoter votearrow rotate180 downvote" title="Downvote" aria-label="Downvote"></a>
                   </span>
-                  <a class="unvoter unvote" title="Unvote"></a>
-                  <a class="collapser" title="Toggle collapse"></a>
+                  <a class="unvoter unvote" title="Unvote" aria-label="Unvote"></a>
+                  <a class="collapser" title="Toggle collapse" role="button" tabindex="0" aria-expanded="true"></a>
                   <span class="score"></span>
                   <span class="author">
                     <a href="" title="User profile"></a>
                     <span class="hnes-user-score-cont noscore" title="User score">(<span class="hnes-user-score"></span>)</span>
                     <span class="hnes-tag-cont">
-                      <img class="hnes-tag" title="Tag user">
+                      <img class="hnes-tag" title="Tag user" alt="Tag user">
                       <span class="hnes-tagText" title="User tag"></span>
-                      <input type="text" class="hnes-tagEdit" placeholder="">
                     </span>
                   </span>
-                  <!--<span class="age"></span>-->
                   <a class="age permalink"></a>
                   <span class="reply-count"></span>
                   <span class="on-story nostory">on <a href=""></a></span>
@@ -303,20 +187,15 @@ class HNComments {
                   </div>
                   <footer>
                       <a class="reply">reply</a>
-                      <!--<a class="permalink">permalink</a>-->
                       <a class="parent">parent</a>
                   </footer>
               </section>
-              <section class="replies"></div>
+              <section class="replies"></section>
           </div>
       </template>
       `
         this.commentTemplate = injector.firstElementChild;
         this.storyId = storyId;
-    }
-
-    getNodeMap() {
-        return this.nodeMap;
     }
 
     extractCommentParts(commentEl) {
@@ -389,8 +268,12 @@ class HNComments {
                 commentEl = t.querySelector('div.comment'),
                 isDeleted = !(commentEl && commentEl.firstElementChild),
                 textParts = isDeleted ? [] : this.extractCommentParts(commentEl),
-                imgEl = t.querySelector('img'),
-                level = (imgEl && (Math.floor(imgEl.getAttribute('width') / 40))) + 1,
+                indEl = t.querySelector('td.ind'),
+                imgEl = t.querySelector('td.ind img'),
+                // current HN emits indent="N"; older markup only had the spacer img width=40*N
+                level = (indEl && indEl.getAttribute('indent') !== null
+                    ? Number(indEl.getAttribute('indent'))
+                    : (imgEl ? Math.floor(Number(imgEl.getAttribute('width')) / 40) : 0)) + 1,
                 parentLinkEl = t.querySelector('.par a'),
                 parentLinkUrl = parentLinkEl ? parentLinkEl.href : '',
                 storyLinkEl = t.querySelector('.onstory a'),
@@ -400,9 +283,16 @@ class HNComments {
                 userColor = userFontEl ? userFontEl.getAttribute('color') : '',
                 isNoob = userColor == "#3c963c",
                 isOP = username == original_poster,
-                commtextEl = commentEl.querySelector('.commtext'),
+                commtextEl = commentEl ? commentEl.querySelector('.commtext') : null,
                 commentColor = commtextEl ? (commtextEl.classList[1] || 'c00') : 'c00',
-                isDead = t.querySelector('span.comhead').textContent.includes(' [dead] '),
+                comheadEl = t.querySelector('span.comhead'),
+                comheadText = comheadEl ? comheadEl.textContent : '',
+                // HN marks dead/flagged comments either as a text node inside
+                // span.comhead or as the whole comment body when showdead is off:
+                // <div class="comment noshow">[flagged]</div>
+                commentBodyText = commentEl ? commentEl.textContent : '',
+                isDead = comheadText.includes('[dead]') || comheadText.includes('[flagged]') ||
+                    commentBodyText.includes('[dead]') || commentBodyText.includes('[flagged]'),
                 scoreEl = t.querySelector('span.score'),
                 score = scoreEl ? scoreEl.textContent : '';
 
@@ -485,7 +375,10 @@ class HNComments {
         authorEl.textContent = c.username;
         authorEl.href = c.userUrl;
 
-        if (c.isCollapsed) commentEl.classList.add('collapsed');
+        if (c.isCollapsed) {
+            commentEl.classList.add('collapsed');
+            commentEl.querySelector('.collapser').setAttribute('aria-expanded', 'false');
+        }
 
         if (c.level == 1) {
             parentEl.parentNode.removeChild(parentEl);
@@ -527,7 +420,6 @@ class HNComments {
         if (c.unVoteUrl) {
             voteblockEl.classList.add('voted');
             unvoterEl.classList.add('voted')
-            unvoterEl.style.backgroundImage = 'url(' + unvoteImg + ')'
         }
 
         if (c.storyLinkUrl) {
@@ -553,87 +445,8 @@ class HNComments {
             textContainer.appendChild(parts[i]);
         }
 
-        commentEl.querySelector('.collapser').addEventListener('click', e => {
-            e.preventDefault();
-            this.collapse(c);
-        }, true);
-
-        // ajax upvotes and increments user-specific upvote data
-        commentEl.querySelector('a.upvote').addEventListener('click', e => {
-            e.preventDefault();
-            var httpRequest = new XMLHttpRequest();
-            httpRequest.onload = function(e) {
-                // after upvoting, retrieve new unvote link from response
-                var regex_str = "vote\\?id=" + commentEl.id + "&amp;how=un.*?'";
-                var regex = new RegExp(regex_str)
-                var unVoteUrl = httpRequest.responseText.match(regex)[0].slice(0, -1);
-                var parser = new DOMParser;
-                var dom = parser.parseFromString(
-                    '<!doctype html><body>' + unVoteUrl,
-                    'text/html');
-                var decodedString = dom.body.textContent;
-                c.unVoteUrl = decodedString;
-                commentEl.querySelector('a.unvote').href = c.unVoteUrl;
-
-                HN.upvoteUserData(authorEl.textContent, 1);
-                c.myVote = 1;
-                upvoterEl.classList.add('voted');
-                downvoterEl.classList.add('voted');
-                voteblockEl.classList.add('voted');
-                unvoterEl.classList.add('voted');
-                unvoterEl.style.backgroundImage = 'url(' + unvoteImg + ')'
-            };
-            httpRequest.open('GET', c.upVoteUrl, true);
-            httpRequest.send();
-        }, true);
-
-        // ajax downvotes and decrements user-specific upvote data
-        commentEl.querySelector('a.downvote').addEventListener('click', e => {
-            e.preventDefault();
-            var httpRequest = new XMLHttpRequest();
-            httpRequest.onload = function(e) {
-                // after downvoting, retrieve new unvote link from response
-                var regex_str = "vote\\?id=" + commentEl.id + "&amp;how=un.*?'";
-                var regex = new RegExp(regex_str)
-                var unVoteUrl = httpRequest.responseText.match(regex)[0].slice(0, -1);
-                var parser = new DOMParser;
-                var dom = parser.parseFromString(
-                    '<!doctype html><body>' + unVoteUrl,
-                    'text/html');
-                var decodedString = dom.body.textContent;
-                c.unVoteUrl = decodedString;
-                commentEl.querySelector('a.unvote').href = c.unVoteUrl;
-
-                HN.upvoteUserData(authorEl.textContent, -1);
-                c.myVote = -1;
-                upvoterEl.classList.add('voted');
-                downvoterEl.classList.add('voted');
-                voteblockEl.classList.add('voted');
-                unvoterEl.classList.add('voted');
-                unvoterEl.style.backgroundImage = 'url(' + unvoteImg + ')'
-            };
-            httpRequest.open('GET', c.downVoteUrl, true);
-            httpRequest.send();
-        }, true);
-
-        // ajax unvote
-        commentEl.querySelector('a.unvote').addEventListener('click', e => {
-            e.preventDefault();
-            var httpRequest = new XMLHttpRequest();
-            httpRequest.onload = function(e) {
-                // undo in the opposite direction of the active vote: -1 for upvote, +1 for downvote
-                HN.upvoteUserData(authorEl.textContent, -c.myVote);
-                c.myVote = null;
-                // only show up/down vote if we receive urls (for logged out users or low karma)
-                if (c.upVoteUrl) upvoterEl.classList.remove('voted');
-                if (c.downVoteUrl) downvoterEl.classList.remove('voted');
-                unvoterEl.classList.remove('voted');
-                voteblockEl.classList.remove('voted');
-            };
-            var unvote_link = c.unVoteUrl;
-            httpRequest.open('GET', unvote_link, true);
-            httpRequest.send();
-        }, true);
+        // vote and collapse interactions are delegated (see apply()) so a
+        // 1651-comment thread does not attach 4 listeners per comment
 
         this.renderComments(kids, commentEl.querySelector('.replies'))
         into.appendChild(clone);
@@ -645,22 +458,78 @@ class HNComments {
         }
     }
 
+    static extractUnvoteUrl(html, id) {
+        // matches vote?id=N&how=un... whether the href was &amp;-encoded,
+        // &-raw, single- or double-quoted; returns null when absent
+        var m = html.match(new RegExp("vote\\?id=" + id + "(?:&amp;|&)how=un[^\\s'\"<>]*"));
+        if (!m) return null;
+        var dom = new DOMParser().parseFromString('<!doctype html><body>' + m[0], 'text/html');
+        return dom.body.textContent;
+    }
+
+    voteRequest(c, direction) {
+        // direction: 1 upvote, -1 downvote, 0 unvote
+        var url = direction === 1 ? c.upVoteUrl : direction === -1 ? c.downVoteUrl : c.unVoteUrl;
+        if (!url) return;
+        var el = c.el;
+        var httpRequest = new XMLHttpRequest();
+        httpRequest.onload = function(e) {
+            if (direction === 0) {
+                // undo in the opposite direction of the active vote: -1 for upvote, +1 for downvote
+                HN.upvoteUserData(c.username, -c.myVote);
+                c.myVote = null;
+                // only show up/down vote if we have urls (for logged out users or low karma)
+                if (c.upVoteUrl) el.querySelector('.upvoter').classList.remove('voted');
+                if (c.downVoteUrl) el.querySelector('.downvoter').classList.remove('voted');
+                el.querySelector('.unvoter').classList.remove('voted');
+                el.querySelector('.voteblock').classList.remove('voted');
+                return;
+            }
+            // after voting, retrieve the new unvote link from the response;
+            // a login/expired reply has none — fall back to letting HN show it
+            var unVoteUrl = HNComments.extractUnvoteUrl(httpRequest.responseText, c.id);
+            if (!unVoteUrl) {
+                window.location.href = url;
+                return;
+            }
+            c.unVoteUrl = unVoteUrl;
+            el.querySelector('a.unvote').href = c.unVoteUrl;
+
+            HN.upvoteUserData(c.username, direction);
+            c.myVote = direction;
+            el.querySelector('.upvoter').classList.add('voted');
+            el.querySelector('.downvoter').classList.add('voted');
+            var unvoterEl = el.querySelector('.unvoter');
+            unvoterEl.classList.add('voted');
+            el.querySelector('.voteblock').classList.add('voted');
+        };
+        httpRequest.onerror = function() {
+            // transient failure — let HN render its own response
+            window.location.href = url;
+        };
+        httpRequest.open('GET', url, true);
+        httpRequest.send();
+    }
+
     collapse(c) {
         c.isCollapsed = !c.isCollapsed;
         c.isDirty = true;
         c.el.classList.toggle('collapsed', c.isCollapsed);
+        var collapserEl = c.el.querySelector(':scope > header > .collapser');
+        if (collapserEl) collapserEl.setAttribute('aria-expanded', c.isCollapsed ? 'false' : 'true');
         this.storeMeta();
     }
 
     getMeta() {
+        const now = Date.now();
         const toStore = {};
         preorder(this.nodeMap.root, n => {
-            if (n.isDirty) toStore[n.id] = { 'isCollapsed': n.isCollapsed };
+            if (n.isDirty) toStore[n.id] = { 'isCollapsed': n.isCollapsed, 't': now };
         });
         return toStore;
     }
 
-    storeMeta(items) {
+    storeMeta() {
         chrome.storage.local.set(this.getMeta());
     }
 
@@ -670,7 +539,21 @@ class HNComments {
             keys.push(n.id);
         });
         chrome.storage.local.get(keys, items => {
-            callback(items);
+            // drop and delete stale entries so collapse state cannot accumulate forever
+            const now = Date.now();
+            const meta = {};
+            const expired = [];
+            for (const k of keys) {
+                const m = items[k];
+                if (!m) continue;
+                if (m && typeof m === 'object' && typeof m.t === 'number' && now - m.t <= HN.COLLAPSE_TTL_MS) {
+                    meta[k] = m;
+                } else {
+                    expired.push(k);
+                }
+            }
+            if (expired.length) chrome.storage.local.remove(expired);
+            callback(meta);
         })
     }
 
@@ -683,7 +566,7 @@ class HNComments {
                 }
                 const res = acc + n.children.length;
                 n.descCount = res;
-                n.isCollapsed = (meta[n.id] && meta[n.id].isCollapsed);
+                n.isCollapsed = Boolean(meta[n.id] && meta[n.id].isCollapsed);
                 return res;
             };
             visit(nodeMap.root);
@@ -695,7 +578,6 @@ class HNComments {
         var commentTree = document.querySelector('#hnmain table.comment-tree');
         var itemList = document.querySelector('#hnmain table.itemlist');
         var threadList = document.querySelector('#hnmain table.comments-table');
-        var threadList;
         if (!commentTree && !itemList && !threadList) {
             console.warn('unrecognized markup detected, no commentTree, itemList, or threadList');
             return;
@@ -712,20 +594,68 @@ class HNComments {
             const commentsContainer = document.createElement('div');
             commentsContainer.id = 'hnes-comments';
 
-            this.renderComments(this.nodeMap.root.children, commentsContainer);
-            commentTree.parentNode.replaceChild(commentsContainer, commentTree);
-            if (itemList) {
-                commentsContainer.classList.add('nolevels')
-            } else {
-                // highlight new comments on threaded pages
-                CommentTracker.init();
+            try {
+                this.wireDelegation(commentsContainer);
+                this.renderComments(this.nodeMap.root.children, commentsContainer);
+                commentTree.parentNode.replaceChild(commentsContainer, commentTree);
+                if (itemList) {
+                    commentsContainer.classList.add('nolevels')
+                } else {
+                    // highlight new comments on threaded pages
+                    CommentTracker.init();
+                }
+                // load and show user tags and point totals
+                HN.addInfoToUsers();
+            } catch (e) {
+                // a parse failure must never blank the thread — the native
+                // comment table was never hidden, so it stays readable
+                console.error('HNES: comment rendering failed, keeping native markup', e);
+            } finally {
+                var loading_comments = document.getElementById('loading_comments');
+                if (loading_comments) {
+                    loading_comments.classList.add('hidden');
+                }
             }
-            // load and show user tags and point totals
-            HN.addInfoToUsers();
-            var loading_comments = document.getElementById('loading_comments');
-            if (loading_comments) {
-                loading_comments.classList.add('hidden');
-            }
+        });
+    }
+
+    wireDelegation(container) {
+        if (this._wired) return;
+        this._wired = true;
+        var self = this;
+        var commentFor = function (el) {
+            var commentEl = el.closest('.hnes-comment');
+            return commentEl ? self.nodeMap[commentEl.id] : null;
+        };
+
+        on(container, 'click', '.collapser', function(e) {
+            e.preventDefault();
+            var c = commentFor(this);
+            if (c) self.collapse(c);
+        });
+        on(container, 'click', 'a.upvote', function(e) {
+            e.preventDefault();
+            var c = commentFor(this);
+            if (c && c.upVoteUrl) self.voteRequest(c, 1);
+        });
+        on(container, 'click', 'a.downvote', function(e) {
+            e.preventDefault();
+            var c = commentFor(this);
+            if (c && c.downVoteUrl) self.voteRequest(c, -1);
+        });
+        on(container, 'click', 'a.unvote', function(e) {
+            e.preventDefault();
+            var c = commentFor(this);
+            if (c && c.unVoteUrl) self.voteRequest(c, 0);
+        });
+        // keyboard support for the collapser (role=button, tabindex=0)
+        container.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var target = e.target;
+            if (!target.closest || !target.closest('.collapser')) return;
+            e.preventDefault();
+            var c = commentFor(target);
+            if (c) self.collapse(c);
         });
     }
 }
@@ -742,7 +672,7 @@ function preorder(n, visit, skip) {
 
 var HN = {
     init: function() {
-
+        HN.pruneStorage();
         HN.initElements();
         HN.removeNumbers();
 
@@ -800,22 +730,24 @@ var HN = {
         if (postPagesRE.test(pathname)) {
             HN.doPostsList();
 
-            function remove_first_tr() {
-                var tr = $('body #content td table tbody tr:not(.athing)');
-                if (tr) tr.remove();
-            }
             if (pathname == '/jobs') {
                 document.body.id = "jobs-body";
             }
             if (pathname == '/show' || pathname == '/jobs') {
-                remove_first_tr();
-                var blurbRow = $('body #content td table tbody tr:not(.athing)');
-                if (blurbRow) {
-                    var blurb = blurbRow.querySelector('td:last-child').innerHTML;
-                    blurbRow.remove();
+                // current HN markup: the blurb is a leading <div> inside the
+                // content cell, above the story table — restyle it in place
+                // instead of guessing at text rows (which now eats subtexts)
+                var blurbDiv = $('#content > td > div');
+                if (blurbDiv) {
                     var blurbEl = createEl('<p class="blurb"></p>').firstElementChild;
-                    blurbEl.innerHTML = blurb;
-                    $('body #content table').insertAdjacentElement('beforebegin', blurbEl);
+                    while (blurbDiv.firstChild) {
+                        blurbEl.appendChild(blurbDiv.firstChild);
+                    }
+                    var contentTable = $('#content > td > table');
+                    if (contentTable) {
+                        contentTable.insertAdjacentElement('beforebegin', blurbEl);
+                    }
+                    blurbDiv.remove();
                 }
             }
         }
@@ -832,7 +764,6 @@ var HN = {
 
             var morelink = document.querySelector('.morelink');
             if (morelink) {
-                var morelink_href = morelink.href;
                 $('#content').insertAdjacentElement('afterend', morelink);
             }
 
@@ -864,7 +795,6 @@ var HN = {
 
             var morelink = document.querySelector('.morelink');
             if (morelink) {
-                var morelink_href = morelink.href;
                 newtable.parentElement.appendChild(morelink);
             }
 
@@ -958,7 +888,7 @@ var HN = {
         var search_domain = "hn.algolia.com";
         HN.setSearchInput($('input[name="q"]'), search_domain);
 
-        var icon = $('img[src="y18.gif"]');
+        var icon = $('img[src="y18.gif"], img[src="y18.svg"]');
         if (icon) {
             var iconParent = icon.parentElement;
             if (iconParent) iconParent.setAttribute('href', 'http://news.ycombinator.com/');
@@ -972,6 +902,31 @@ var HN = {
         link.type = 'text/css';
         link.href = 'news.css';
         document.head.appendChild(link);
+    },
+
+    COLLAPSE_TTL_MS: 30 * 24 * 60 * 60 * 1000, // collapse state expires after 30 days
+
+    pruneStorage: function() {
+        // enforces the expiry that used to live in the (never registered)
+        // background script: drop thread-info entries whose expire timestamp
+        // has passed and legacy collapse markers without a timestamp
+        chrome.storage.local.get(null, function(items) {
+            var now = Date.now();
+            var expired = Object.keys(items).filter(function(k) {
+                var v = items[k], o = null;
+                if (typeof v === 'string') {
+                    try { o = JSON.parse(v); } catch (e) { return false; }
+                }
+                else if (v && typeof v === 'object') {
+                    o = v;
+                }
+                if (!o || typeof o !== 'object') return false;
+                if (typeof o.expire === 'number') return o.expire < now;
+                if ('isCollapsed' in o) return typeof o.t !== 'number';
+                return false;
+            });
+            if (expired.length) chrome.storage.local.remove(expired);
+        });
     },
 
 
@@ -1020,7 +975,7 @@ var HN = {
         var buttonHtml = submitBtn ? submitBtn.outerHTML : '';
         if (submitBtn) submitBtn.remove();
 
-        var headerHtml = '<tr id="header"><td bgcolor="#ff6600"><table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px"><tbody><tr><td><a href="http://ycombinator.com"><img src="y18.gif" width="18" height="18" style="border:1px #ffffff solid;"></a></td><td><span class="pagetop" id="top-navigation"><span class="nav-links"><span><a href="/news" class="top" title="Top stories">top</a>|</span><span><a href="/newest" class="new" title="Newest stories">new</a>|</span><span><a href="/best" class="best" title="Best stories">best</a></span></div></span></span></td></tr></tbody></table></td></tr>';
+        var headerHtml = '<tr id="header"><td bgcolor="#ff6600"><table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px"><tbody><tr><td><a href="http://ycombinator.com"><img src="y18.svg" width="18" height="18" style="border:1px #ffffff solid;"></a></td><td><span class="pagetop" id="top-navigation"><span class="nav-links"><span><a href="/news" class="top" title="Top stories">top</a>|</span><span><a href="/newest" class="new" title="Newest stories">new</a>|</span><span><a href="/best" class="best" title="Best stories">best</a></span></div></span></span></td></tr></tbody></table></td></tr>';
 
         // wrap content into a table
         var loginForm = $('body > form');
@@ -1104,9 +1059,6 @@ var HN = {
         document.body.id = "index-body";
 
         HN.init_keys();
-
-        //HN.removeUpvotes();
-        //with upvotes, the 'more' link needs to be shifted 1 more col
         HN.moveMoreLink();
         HN.formatScore();
         HN.formatURL();
@@ -1117,29 +1069,13 @@ var HN = {
         HN.getAndRateStories();
         //enable highlighting of clicked links
         HN.enableLinkHighlighting();
-
-        HN.replaceVoteButtons(true);
     },
 
-    /*addClassToCommenters: function() {
-      //add class to comment author
-      var commenters = $(".comhead a[href*=user]");
-      commenters.addClass('commenter');
-    },*/
-
     doCommentsList: function(pathname, track_comments) {
-        //      InlineReply.init();
-        //HN.addClassToCommenters();
-
         //add classes to comment page header (OP post) and the table containing all the comments
         var comments;
 
-        let itemIdResults = /id=(\w+)/.exec(window.location.search)
-        var itemId = false;
-        if (itemIdResults) {
-            itemId = /id=(\w+)/.exec(window.location.search)[1];
-        }
-        below_header = $$('#content table');
+        var below_header = $$('#content table');
 
         if (below_header[1]) {
             var loadingP = createEl("<p id='loading_comments'>Loading comments</p>").firstElementChild;
@@ -1197,7 +1133,7 @@ var HN = {
         var contentTd = $('#content > td');
         if (contentTd) contentTd.id = 'user-profile';
 
-        var options = $$('.tr > td[valign="top"]');
+        var options = $$('#user-profile tr > td[valign="top"]');
         var user = options[0];
         var created = options[1];
         var karma = options[2];
@@ -1341,7 +1277,7 @@ var HN = {
     },
 
     getFormattingHelp: function(links_work) {
-        help = '<p>Blank lines separate paragraphs.</p>' +
+        var help = '<p>Blank lines separate paragraphs.</p>' +
             '<p>Text after a blank line that is indented by two or more spaces is reproduced verbatim (this is intended for code).</p>' +
             '<p>Text surrounded by asterisks is italicized, if the character after the first asterisk isn\'t whitespace.</p>';
         if (links_work)
@@ -1425,6 +1361,10 @@ var HN = {
                 } else {
                     HN.doAfterCommentsLoad();
                 }
+            })
+            .catch(function() {
+                // fetch failed — render what we already have instead of hanging on "Loading"
+                HN.doAfterCommentsLoad();
             });
     },
 
@@ -1436,29 +1376,19 @@ var HN = {
         }
     },
 
-    replaceVoteButtons: function(isPostList) {
-        $$('img[src$="grayarrow.gif"]').forEach(function(img) {
-            var div = createEl('<div class="up-arrow"></div>').firstElementChild;
-            img.parentNode.replaceChild(div, img);
-        });
-        $$('img[src$="graydown.gif"]').forEach(function(img) {
-            var div = createEl('<div class="down-arrow last-arrow"></div>').firstElementChild;
-            img.parentNode.replaceChild(div, img);
-        });
 
-        if (isPostList) {
-            $$('div.up-arrow').forEach(function(el) { el.classList.add('postlist-arrow'); });
-        } else {
-            // any up-arrows that don't have a down arrow next to them, add the last-arrow class
-            // as well, which will give a bit extra margin before the show/hide link
-            $$('div.up-arrow').forEach(function(el) {
-                var centerAncestor = el.closest('center');
-                var numbuttons = centerAncestor ? centerAncestor.querySelectorAll('a').length : 0;
-                if (numbuttons == 1) {
-                    el.classList.add('last-arrow');
-                }
-            });
+    parseUserInfo: function(raw) {
+        // storage values are JSON strings; very old versions stored a bare
+        // number ('1') which must migrate to {votes: 1}
+        var info = null;
+        if (typeof raw === 'number') info = raw;
+        else if (typeof raw === 'string') {
+            try { info = JSON.parse(raw); } catch (e) { info = null; }
         }
+        else if (raw && typeof raw === 'object') info = raw;
+        if (typeof info === 'number') return { votes: info };
+        if (info && typeof info === 'object' && !Array.isArray(info)) return info;
+        return {};
     },
 
     addInfoToUsers: function() {
@@ -1471,92 +1401,79 @@ var HN = {
             for (var i = 0; i < author_els.length; i++) {
                 var author_el = author_els[i],
                     name = usernames[i],
-                    userInfo = userData[name];
+                    rawInfo = userData[name];
 
-                if (userInfo) {
-                    if (typeof userInfo === "number") {
-                        //Convert the legacy format.
-                        //  Upvotes used to be saved in localStorage as (for example) etcet: '1', but are now etcet: '{"votes": 1}'.
-                        //  This change in format was made so that tag information can be saved in the same location;
-                        //  i.e. it will soon be saved as etcet: '{"votes": 1, "tag": "Creator of HNES"}'.
-                        //
-                        //  The conversion only needs to be done here, since this executes on page load,
-                        //  which means that whatever username you see will have undergone the conversion to the new format.
-                        userInfo = { 'votes': userInfo };
-                        HN.setLocalStorage(name, JSON.stringify(userInfo));
-                        console.log('Converted legacy format for user', name);
-                    }
-                    else {
-                        var info;
-                        try {
-                            info = JSON.parse(userInfo);
-                        }
-                        catch (e) {
-                            info = {}
-                        }
-                        // display user tag and score
-                        if (info.tag) HN.displayUserTag(author_el, info.tag || '');
-                        if (info.votes) HN.displayUserScore(author_el, info.votes);
-                    }
+                if (rawInfo === undefined || rawInfo === null) continue;
+                var info = HN.parseUserInfo(rawInfo);
+
+                // migrate the legacy bare-number format in place
+                if (typeof rawInfo === 'number' || /^\s*-?\d+(\.\d+)?\s*$/.test(String(rawInfo))) {
+                    HN.setLocalStorage(name, JSON.stringify(info));
                 }
-            };
+
+                // display user tag and score
+                if (info.tag) HN.displayUserTag(author_el, info.tag);
+                if (info.votes) HN.displayUserScore(author_el, info.votes);
+            }
         });
 
 
         on(document, 'click', '.hnes-tag, .hnes-tagText', function(e) {
-            // Using delegated listener so that the event applies to all elements generated in the future
+            // delegated so that the event applies to all elements generated in the future
             HN.editUserTag(e);
         });
 
         on(document, 'keyup', '.hnes-tagEdit', function(e) {
-            var code = e.keyCode || e.which,
-                parent = this.parentElement,
+            var parent = this.parentElement,
                 gp = parent ? parent.parentElement : null;
 
-            if (code === 13) { // Enter
+            var finishEdit = function() {
+                if (parent) parent.classList.remove('edit');
+                this.remove();
+            }.bind(this);
+
+            if (e.key === 'Enter') {
                 if (gp) {
                     var authorEl = gp.querySelector('a');
                     var author = authorEl ? authorEl.textContent : '';
-                    var tagEdit = parent.querySelector('.hnes-tagEdit');
-                    HN.setUserTag(author, tagEdit ? tagEdit.value : '');
+                    HN.setUserTag(author, this.value);
                 }
-                if (parent) parent.classList.remove('edit');
+                finishEdit();
             }
-            if (code === 27) { // Escape
-                var tagText = parent.querySelector('.hnes-tagText');
-                var tagEdit2 = parent.querySelector('.hnes-tagEdit');
-                if (tagEdit2 && tagText) tagEdit2.value = tagText.textContent;
-                if (parent) parent.classList.remove('edit');
+            if (e.key === 'Escape') {
+                finishEdit();
             }
         });
     },
 
     upvoteUserData: function(author, value) { // Adds value to the user's upvote count, saves and displays it.
         HN.getLocalStorage(author, function(response) {
-            var userInfo = {},
-                new_upvote_total = value;
+            var userInfo = HN.parseUserInfo(response.data);
+            var new_upvote_total = value + (typeof userInfo.votes === 'number' ? userInfo.votes : 0);
 
-            if (response.data) {
-                userInfo = JSON.parse(response.data);
-            }
-
-            if (userInfo.votes) { // If we already have up/downvoted this user before.
-                new_upvote_total += userInfo.votes;
-            }
-            userInfo.votes = new_upvote_total;
             if (new_upvote_total === 0) {
                 delete userInfo.votes;
+            }
+            else {
+                userInfo.votes = new_upvote_total;
             }
             HN.setLocalStorage(author, JSON.stringify(userInfo));
             HN.showNewUserScore(author, new_upvote_total); // Set the upvote count
         });
     },
 
+    authorEls: function(author) {
+        // exact username match — 'arc' must never hit 'arcfour'
+        return $$('.author').filter(function(el) {
+            var a = el.querySelector('a');
+            return a && a.textContent === author;
+        });
+    },
+
     showNewUserScore: function(author, value) {
-        var author_els = $contains('.author', author);
+        var author_els = HN.authorEls(author);
         for (var i = 0; i < author_els.length; i++) {
-            var author_el = author_els[i];
-            var score_el = author_el.querySelector('.hnes-user-score');
+            var score_el = author_els[i].querySelector('.hnes-user-score');
             if (score_el) {
                 if (value !== 0) {
                     score_el.textContent = value;
@@ -1577,29 +1494,31 @@ var HN = {
     },
 
     displayUserTag: function(el, tag) {
-        if (tag) {
-            var tagTextEl = el.parentElement.querySelector('.hnes-tagText');
-            var tagEditEl = el.parentElement.querySelector('.hnes-tagEdit');
-            if (tagTextEl) tagTextEl.textContent = tag;
-            if (tagEditEl) tagEditEl.value = tag;
-        }
+        if (!tag) return;
+        var tagTextEl = el.parentElement.querySelector('.hnes-tagText');
+        if (tagTextEl) tagTextEl.textContent = tag;
     },
 
     editUserTag: function(e) {
         var target = e.target || e;
         var parent = target.parentElement;
         if (!parent) return;
+        // the tag input is created on demand — one per editing session,
+        // not one per rendered comment
         var tagEdit = parent.querySelector('.hnes-tagEdit');
+        if (!tagEdit) {
+            tagEdit = document.createElement('input');
+            tagEdit.type = 'text';
+            tagEdit.className = 'hnes-tagEdit';
+            parent.appendChild(tagEdit);
+        }
         parent.classList.add('edit');
-        if (tagEdit) tagEdit.focus();
+        tagEdit.focus();
     },
 
     setUserTag: function(author, tag) {
         HN.getLocalStorage(author, function(response) {
-            var userInfo = {};
-
-            if (response.data)
-                userInfo = JSON.parse(response.data);
+            var userInfo = HN.parseUserInfo(response.data);
 
             if (tag !== '')
                 userInfo.tag = tag;
@@ -1609,14 +1528,10 @@ var HN = {
             HN.setLocalStorage(author, JSON.stringify(userInfo));
         });
 
-        var commenter = $contains('.author', author);
+        var commenter = HN.authorEls(author);
         for (var i = 0; i < commenter.length; i++) {
-            var tagText = commenter[i].parentElement.querySelector('.hnes-tagText');
-            var tagEditEl = commenter[i].parentElement.querySelector('.hnes-tagEdit');
-
-            // Change it all to the new value:
+            var tagText = commenter[i].querySelector('.hnes-tagText');
             if (tagText) tagText.textContent = tag;
-            if (tagEditEl) tagEditEl.value = tag;
         }
     },
 
@@ -1624,46 +1539,85 @@ var HN = {
         $$('td[align="right"]').forEach(function(el) { el.remove(); });
     },
 
+    collectActions: function(subtext) {
+        // collect action links into hnes-actions span
+        var actionsSpan = createEl('<span class="hnes-actions"></span>').firstElementChild;
+        var flagLinks = subtext.querySelectorAll('a[href^="flag"]');
+        var vouchLinks = subtext.querySelectorAll('a[href^="vouch"]');
+        var algoliaLinks = subtext.querySelectorAll('a[href^="https://hn.algolia.com/?query="]');
+        var hideLinks = subtext.querySelectorAll('a[href^="hide"]');
+        var googleLinks = subtext.querySelectorAll('a[href^="https://www.google.com/search?q="]');
+        var faveLinks = subtext.querySelectorAll('a[href^="fave"]');
+        [flagLinks, vouchLinks, algoliaLinks, hideLinks, googleLinks, faveLinks].forEach(function(links) {
+            links.forEach(function(link) { actionsSpan.appendChild(link); });
+        });
+        return actionsSpan;
+    },
+
     formatScore: function() {
         $$('.subtext').forEach(function(subtext) {
-            var score = subtext.querySelector('span:first-child');
+            var score = subtext.querySelector('span.score');
             var as = subtext.querySelectorAll('a');
-            var by = as[0];
-            var at = as[1];
-            var comments;
+            var by = subtext.querySelector('a[href^="user?id="]');
+            var at = subtext.querySelector('span.age a');
+
+            // find the real 'n comments' / 'discuss' link — it is not
+            // necessarily the last anchor (logged-in rows end with
+            // hide/past/favorite)
+            var comments = null;
+            for (var i = as.length - 1; i >= 0; i--) {
+                var href = as[i].getAttribute('href') || '';
+                var text = as[i].textContent.trim();
+                if (/^item\?id=\d+/.test(href) && (text === 'discuss' || /\d\s*comments?/.test(text))) {
+                    comments = as[i];
+                    break;
+                }
+            }
+
+            // scoreless, comment-less rows (e.g. job posts): transformed rows
+            // form a 4-column grid [comments, score, votelinks, title] with the
+            // subtext row removed and its age/actions inlined into the title
+            // cell. Do the same here so job rows stay single-line: pad the row
+            // to the grid, inline age + action links, drop the native subtext.
+            if (!score && !comments) {
+                var titleRow = subtext.parentElement.previousElementSibling;
+                if (titleRow && titleRow.children.length === 2 &&
+                        !titleRow.querySelector('.votelinks')) {
+                    titleRow.insertBefore(
+                        createEl('<td colspan="2"></td>').firstElementChild,
+                        titleRow.firstChild);
+                }
+                var jobTitleTd = titleRow ? titleRow.querySelector('td.title') : null;
+                if (jobTitleTd) {
+                    var jobAgeSpan = createEl('<span class="hnes-age"></span>').firstElementChild;
+                    if (at) jobAgeSpan.textContent = at.textContent;
+                    jobTitleTd.appendChild(jobAgeSpan);
+                    jobTitleTd.appendChild(HN.collectActions(subtext));
+                }
+                var jobSpacer = subtext.parentElement.nextElementSibling;
+                if (jobSpacer && jobSpacer.children.length === 0) jobSpacer.remove();
+                subtext.parentElement.remove();
+                return;
+            }
 
             if (!score) {
                 score = createEl('<span>0</span>').firstElementChild;
             }
             else {
+                // note: only the points span is rewritten — the surrounding
+                // .subline must survive so hide/flag/favorite stay reachable
                 score.textContent = parseInt(score.textContent);
             }
             score.classList.add('score');
             score.setAttribute('title', 'Points');
 
-            var lastA = as[as.length - 1];
-            if (lastA && lastA.textContent != 'web') {
-                comments = lastA;
-            }
-            else {
-                comments = createEl('<a>-</a>').firstElementChild;
-            }
+            var comments_link = comments ? comments.getAttribute('href')
+                : (at ? at.getAttribute('href') : '');
 
-            var comments_link = at ? at.getAttribute('href') : '';
-
-            var commentsText = comments.textContent;
-            if (commentsText == "discuss" || /ago$/.test(commentsText)) {
+            if (!comments || comments.textContent.trim() === 'discuss') {
                 var newComments = createEl('<a>0</a>').firstElementChild;
-                newComments.setAttribute('href', comments.getAttribute('href') || '');
+                newComments.setAttribute('href', comments_link);
                 comments = newComments;
-            }
-            else if (commentsText == "comments") {
-                var newComments2 = createEl('<a>?</a>').firstElementChild;
-                newComments2.setAttribute('href', comments.getAttribute('href') || '');
-                comments = newComments2;
-            }
-            else if (commentsText == "") {
-                score.textContent = '';
             }
             else {
                 comments.textContent = parseInt(comments.textContent) || '-';
@@ -1683,9 +1637,9 @@ var HN = {
                 by_el.appendChild(by);
             }
 
-            var score_el = createEl('<td></td>').firstElementChild;
+            var score_el = createEl('<td class="hnes-score-col"></td>').firstElementChild;
             score_el.appendChild(score);
-            var comments_el = createEl('<td></td>').firstElementChild;
+            var comments_el = createEl('<td class="hnes-comments-col"></td>').firstElementChild;
             comments_el.appendChild(comments);
 
             var parent = subtext.parentElement;
@@ -1697,20 +1651,15 @@ var HN = {
                 if (titleEl) titleEl.appendChild(by_el);
             }
             if (parent) {
-                if (parent.nextElementSibling) parent.nextElementSibling.remove();
+                // drop the row's empty spacer row (HN emits height:5px
+                // spacers); never remove a row that carries content
+                var next = parent.nextElementSibling;
+                if (next && next.children.length === 0) next.remove();
                 parent.remove();
             }
 
             // collect action links into hnes-actions span
-            var actionsSpan = createEl('<span class="hnes-actions"></span>').firstElementChild;
-            var flagLinks = subtext.querySelectorAll('a[href^="flag"]');
-            var vouchLinks = subtext.querySelectorAll('a[href^="vouch"]');
-            var algoliaLinks = subtext.querySelectorAll('a[href^="https://hn.algolia.com/?query="]');
-            var hideLinks = subtext.querySelectorAll('a[href^="hide"]');
-            var googleLinks = subtext.querySelectorAll('a[href^="https://www.google.com/search?q="]');
-            [flagLinks, vouchLinks, algoliaLinks, hideLinks, googleLinks].forEach(function(links) {
-                links.forEach(function(link) { actionsSpan.appendChild(link); });
-            });
+            var actionsSpan = HN.collectActions(subtext);
             if (by_el.parentElement) {
                 by_el.insertAdjacentElement('afterend', actionsSpan);
             }
@@ -1752,26 +1701,6 @@ var HN = {
             more.previousElementSibling.setAttribute('colspan', '3');
         }
     },
-    removeUpvotes: function() {
-        var titles = $$('.title');
-        if (titles.length > 0 && titles[titles.length - 1].getAttribute('id') == "more") {
-            titles.slice(0, -1).forEach(function(el) {
-                var siblings = el.parentElement.children;
-                for (var i = siblings.length - 1; i >= 0; i--) {
-                    if (siblings[i] !== el) el.parentElement.removeChild(siblings[i]);
-                }
-            });
-        }
-        else {
-            titles.forEach(function(el) {
-                var siblings = el.parentElement.children;
-                for (var i = siblings.length - 1; i >= 0; i--) {
-                    if (siblings[i] !== el) el.parentElement.removeChild(siblings[i]);
-                }
-            });
-        }
-    },
-
     rewriteUserNav: function(pagetop) {
         var user_links = createEl('<span class="nav-links"></span>').firstElementChild;
         var as = pagetop.querySelectorAll('a');
@@ -1962,13 +1891,6 @@ var HN = {
         hidden_div.style.display = 'none';
     },
 
-    toggleMoreNavLinks: function(e) {
-        var others = $('#nav-others');
-        if (others) {
-            others.style.display = (others.style.display === 'none') ? 'block' : 'none';
-        }
-    },
-
     setTopColor: function() {
         var header = document.getElementById("header");
         if (!header) return;
@@ -1980,55 +1902,31 @@ var HN = {
     },
 
     setSearchInput: function(el, domain) {
-        var text = "Search on " + domain;
-        if (el) el.value = text;
-        if (el) el.addEventListener('focus', function() {
-            HN.searchInputFocused = true;
-            if (el.value == text) {
-                el.value = "";
-            }
-        });
-        if (el) el.addEventListener('blur', function() {
-            HN.searchInputFocused = false;
-            if (el.value == "") {
-                el.value = text;
-            }
-        });
+        // a real placeholder — the old value-hack submitted
+        // "Search on hn.algolia.com" as the query when unfocused
+        if (el) el.setAttribute('placeholder', 'Search on ' + domain);
     },
 
-    searchInputFocused: false,
-
     init_keys: function() {
-        var j = 74, // Next Item
-            k = 75, // Previous Item
-            o = 79, // Open Story
-            p = 80, // View Comments
-            h = 72, // Open Help
-            l = 76, // New tab
-            c = 67, // Comments in new tab
-            b = 66, // Open comments and link in new tab
-            shiftKey = 16; // allow modifier
         document.addEventListener('keydown', function(e) {
-            //Keyboard shortcuts disabled when search focused
-            if (!HN.searchInputFocused && !e.ctrlKey) {
-                if (e.which == j) {
-                    HN.next_story();
-                } else if (e.which == k) {
-                    HN.previous_story();
-                } else if (e.which == l) {
-                    HN.open_story_in_new_tab();
-                } else if (e.which == o) {
-                    HN.open_story_in_current_tab();
-                } else if (e.which == p) {
-                    HN.open_comments_in_current_tab();
-                } else if (e.which == c) {
-                    HN.open_comments_in_new_tab();
-                } else if (e.which == h) {
-                    //HN.open_help();
-                } else if (e.which == b) {
+            // never hijack browser/OS shortcuts (⌘C must copy, not open tabs)
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            // or typing in any field
+            var t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
+                      t.tagName === 'SELECT' || t.isContentEditable)) return;
+
+            switch (e.key && e.key.toLowerCase()) {
+                case 'j': HN.next_story(); break;              // Next item
+                case 'k': HN.previous_story(); break;           // Previous item
+                case 'l': HN.open_story_in_new_tab(); break;    // Open story in new tab
+                case 'o': HN.open_story_in_current_tab(); break;
+                case 'p': HN.open_comments_in_current_tab(); break;
+                case 'c': HN.open_comments_in_new_tab(); break;
+                case 'b':                                    // Both, in new tabs
                     HN.open_comments_in_new_tab();
                     HN.open_story_in_new_tab();
-                }
+                    break;
             }
         });
     },
@@ -2155,7 +2053,13 @@ if (window.location.host == "hckrnews.com") {
     });
 }
 else {
-    HN.init();
+    try {
+        HN.init();
+    }
+    catch (e) {
+        // a failed enhancement must degrade to native HN, never a blank page
+        console.error('HNES: initialization failed', e);
+    }
 
     function onReady(fn) {
         if (document.readyState !== 'loading') {
@@ -2166,36 +2070,39 @@ else {
     }
 
     onReady(function() {
-        if (document.body.innerHTML == "Unknown or expired link.") {
-            HN.setLocalStorage('expired', true);
-            window.location.replace("/");
-            return;
-        }
-        else {
-            HN.getLocalStorage('expired', function(response) {
-                if (response.data != undefined) {
-                    var expired = JSON.parse(response.data);
-                    if (expired) {
+        try {
+            if (document.body.textContent.includes("Unknown or expired link.")) {
+                HN.setLocalStorage('expired', true);
+                window.location.replace("/");
+                return;
+            }
+            else {
+                HN.getLocalStorage('expired', function(response) {
+                    if (response.data) {
                         var headerEl = document.getElementById('header');
                         if (headerEl) {
                             headerEl.insertAdjacentHTML('afterend', '<p id="alert">You reached an <a href="//news.ycombinator.com/item?id=17705" title="what?">expired page</a> and have been redirected back to the front page.</p>');
                         }
                         HN.setLocalStorage('expired', false);
                     }
-                }
-            });
-        }
+                });
+            }
 
-        //redirect to profile page after updating it
-        if (window.location.pathname == "/x") {
-            HN.getLocalStorage('update_profile', function(response) {
-                if (response.data != undefined && response.data != "false") {
-                    HN.setLocalStorage('update_profile', false);
-                    window.location.replace(response.data);
-                }
-            });
+            //redirect to profile page after updating it
+            if (window.location.pathname == "/x") {
+                HN.getLocalStorage('update_profile', function(response) {
+                    if (response.data) {
+                        HN.setLocalStorage('update_profile', false);
+                        window.location.replace(response.data);
+                    }
+                });
+            }
         }
-
-        document.body.style.visibility = 'visible';
+        catch (e) {
+            console.error('HNES: post-init failed', e);
+        }
+        finally {
+            document.body.style.visibility = 'visible';
+        }
     });
 }

@@ -97,3 +97,44 @@ test('linkify processes nested elements', () => {
     assert.ok(anchor, 'expected anchor inside <p>');
     assert.ok(anchor.href.includes('nested.com'));
 });
+
+test('linkify escapes quotes — no attribute injection via email', () => {
+    const window = createEnv();
+    loadScript(window, 'js/linkify.js');
+
+    const div = window.document.createElement('div');
+    div.textContent = 'reach me at x@"onmouseover="window.__HNES_PWNED=1//.com';
+    window.linkify(div);
+
+    const a = div.querySelector('a');
+    assert.ok(a, 'expected an anchor');
+    assert.deepStrictEqual(a.getAttributeNames(), ['href'],
+        'quote in matched text must not close the href attribute');
+    assert.strictEqual(a.getAttribute('href'),
+        'mailto:x@"onmouseover="window.__HNES_PWNED=1//.com');
+});
+
+test('linkify escapes single quotes — no attribute injection', () => {
+    const window = createEnv();
+    loadScript(window, 'js/linkify.js');
+
+    const div = window.document.createElement('div');
+    div.textContent = `x@'onclick='alert(1)//.com end`;
+    window.linkify(div);
+
+    const a = div.querySelector('a');
+    assert.deepStrictEqual(a.getAttributeNames(), ['href']);
+});
+
+test('URL containing @ is not re-matched by the mailto plugin', () => {
+    const window = createEnv();
+    loadScript(window, 'js/linkify.js');
+
+    const div = window.document.createElement('div');
+    div.textContent = 'see https://example.com/a@b.com now';
+    window.linkify(div);
+
+    const anchors = div.querySelectorAll('a');
+    assert.strictEqual(anchors.length, 1, 'no nested/duplicate anchors');
+    assert.strictEqual(anchors[0].getAttribute('href'), 'https://example.com/a@b.com');
+});

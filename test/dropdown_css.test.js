@@ -72,3 +72,17 @@ test('#nav-others must not set padding-right (causes hover-bg shortfall)', () =>
         'reach — move the padding onto #nav-others a so the anchor border box spans ' +
         'the full width (mirrors #user-hidden)');
 });
+
+test('.votearrow has a visible shape (border triangle)', () => {
+    // the injected template renders empty anchors with only .votearrow;
+    // without width/height/border declarations they are invisible (the
+    // "advertised but nonexistent" vote arrows).
+    const window = createEnv('<!DOCTYPE html><html><body></body></html>');
+    const sheets = loadStyleSheets(window);
+    const decls = collectDecls(sheets, '.votearrow');
+
+    assert.ok('width' in decls && 'height' in decls && 'border-bottom' in decls,
+        '.votearrow needs width/height/border-bottom to draw the arrow triangle');
+    assert.notStrictEqual(decls['border-bottom'].indexOf('transparent'), 0,
+        '.votearrow border-bottom must be a visible color, not transparent');
+});

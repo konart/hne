@@ -16,13 +16,18 @@
   --hn-surface-even: #f0f0ea;
   --hn-text: #1a1a1a;
   --hn-text-secondary: #5a5a5a;
-  --hn-text-muted: #828282;
+  --hn-text-muted: #666666;
   --hn-border: #d8d8d0;
   --hn-border-light: #e8e8e2;
-  --hn-blue: #3986f8;
+  --hn-blue: #2f6fe0;
   --hn-green: #3c963c;
   --hn-red: #d73937;
   --hn-black: #000000;
+  --hn-orange-text: #ad5000;  /* AA (>=4.5:1) on all light surfaces; hovers use --hn-orange */
+  --hn-heat-mild: #552200;
+  --hn-heat-medium: #aa4400;
+  --hn-alert-bg: #fff0f0;
+  --hn-alert-border: #ffd0d0;
   --hn-radius: 6px;
   --hn-radius-sm: 4px;
   --hn-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
@@ -34,6 +39,9 @@
   --hn-max-width: 1170px;
   --hn-header-height: 44px;
 }
+
+/* Light palette only (as on main): a dark-scheme variable swap leaves native
+   HN text unreadable on the dark background, so no prefers-color-scheme block. */
 
 body {
   visibility: hidden;
@@ -140,14 +148,11 @@ table tr td {
   background-color: var(--hn-bg-alt) !important;
 }
 
-#index-body #content tr,
-#index-body #content tr:nth-child(32) {
-  background-color: var(--hn-bg) !important;
-}
 
 #index-body #content tr.on_story {
+  --hn-select-bg: #d4e4fc;
   border: 1px solid var(--hn-blue);
-  background-color: #d4e4fc !important;
+  background-color: var(--hn-select-bg) !important;
   box-shadow: inset 3px 0 0 var(--hn-blue);
 }
 
@@ -185,13 +190,18 @@ table tr td {
   max-width: var(--hn-max-width);
 }
 
-#index-body #content table td:first-child {
+/* score/comments columns — sized via classes on the injected cells, not
+   column position, so native scoreless rows (job posts in /news) keep
+   their own widths instead of being squeezed to 64px.
+   Order after formatScore: td.hnes-comments-col is the row's first cell,
+   td.hnes-score-col the second. */
+#index-body #content table td.hnes-comments-col {
   width: 80px;
   max-width: 80px;
   text-align: right;
 }
 
-#index-body #content table td:nth-child(2) {
+#index-body #content table td.hnes-score-col {
   width: 64px;
   max-width: 64px;
   text-align: right;
@@ -217,7 +227,7 @@ table tr td {
 }
 
 .newcomments {
-  color: var(--hn-black);
+  color: var(--hn-text);
 }
 
 a.comments:hover {
@@ -233,7 +243,7 @@ a.comments:hover {
 }
 
 .nav-links a {
-  color: #222;
+  color: var(--hn-text);
   padding-left: 8px;
   padding-right: 8px;
   text-decoration: none;
@@ -327,7 +337,7 @@ a.comments:hover {
 }
 
 #more a {
-  color: var(--hn-orange);
+  color: var(--hn-orange-text);
   font-weight: 600;
   text-decoration: none;
   transition: color var(--hn-transition);
@@ -358,12 +368,20 @@ body#item-body .title {
 }
 
 .item-header tr:nth-child(3) td {
-  color: #000 !important;
+  color: var(--hn-text) !important;
 }
 
 a:link {
-  color: #202020;
+  color: var(--hn-text);
   text-decoration: none;
+}
+
+/* selected story row: story/author links sit on the light-blue background
+   (light scheme) — force maximum contrast, never the muted palette */
+#index-body #content tr.on_story a:link,
+#index-body #content tr.on_story .subtext,
+#index-body #content tr.on_story .subtext a {
+  color: var(--hn-text) !important;
 }
 
 /* ===================== Buttons & inputs ===================== */
@@ -447,7 +465,7 @@ font[color="#ff6600"] {
 }
 
 .comhead {
-  color: #000;
+  color: var(--hn-text);
   font-size: 11px !important;
 }
 
@@ -475,7 +493,7 @@ div > .comhead {
 #loading_comments {
   margin: 1em;
   padding: 1em;
-  color: #000;
+  color: var(--hn-text);
   background-color: var(--hn-surface);
   border-radius: var(--hn-radius-sm);
 }
@@ -505,7 +523,7 @@ div > .comhead {
 
 .pagetop a:hover,
 .pagetop a:active {
-  color: #000;
+  color: var(--hn-text);
 }
 
 /* ===================== Footer ===================== */
@@ -554,7 +572,7 @@ textarea {
 }
 
 form textarea {
-  background: #fff;
+  background: var(--hn-surface);
   font-size: 14px;
   padding: 10px;
   height: 80px;
@@ -574,8 +592,7 @@ textarea:focus, input:focus {
 }
 
 form[action="http://hn.algolia.com/"],
-form[action="//hn.algolia.com/"],
-input[name="q"] {
+form[action="//hn.algolia.com/"] {
   width: 270px;
 }
 
@@ -589,9 +606,13 @@ input[name="q"] {
   border-radius: var(--hn-radius-sm);
 }
 
+input[name="q"]::placeholder {
+  color: var(--hn-text-muted) !important;
+}
+
 input[name="q"]:focus {
   color: var(--hn-text) !important;
-  background: #fff;
+  background: var(--hn-surface);
   border-color: rgba(255,255,255,0.6) !important;
   box-shadow: 0 0 0 3px rgba(255,255,255,0.2) !important;
 }
@@ -611,14 +632,14 @@ br {
 }
 
 .default a:link {
-  color: #000;
+  color: var(--hn-text);
 }
 
 /* ===================== User highlighting ===================== */
 
 #item-body .comhead a.commenter,
 #threads-body .comhead a.commenter {
-  color: #000 !important;
+  color: var(--hn-text) !important;
   font-weight: 600;
 }
 
@@ -629,7 +650,7 @@ a.new_user,
 
 a.original_poster,
 #item-body .comhead a.original_poster {
-  color: var(--hn-orange) !important;
+  color: var(--hn-orange-text) !important;
   font-weight: 600;
 }
 
@@ -649,7 +670,7 @@ a.dead {
   width: 100%;
   max-width: 800px;
   line-height: 1.7em;
-  color: #1a1a1a;
+  color: var(--hn-text);
 }
 
 .comment, .dead {
@@ -703,33 +724,13 @@ pre {
   width: 100%;
 }
 
-.reply_form {
-  width: 300px;
-}
-
-.reply_form input[type="submit"] {
-  margin: 3px;
-}
 
 a[href^="reply"]:visited {
-  color: #000;
+  color: var(--hn-text);
 }
 
 form input[type="submit"] {
   display: block;
-}
-
-/* ===================== Options bar ===================== */
-
-#options_bar {
-  position: fixed;
-  bottom: 0;
-  background: #fff;
-  padding: 8px 16px;
-  border-top: 1px solid var(--hn-border);
-  width: 100%;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
-  font-size: 12px;
 }
 
 td::selection,
@@ -756,46 +757,22 @@ form[action="/r"] input[type="submit"] {
   margin: 0;
 }
 
-#submit-overlay {
-  position: absolute;
-  background: #fff;
-  padding: 24px;
-  z-index: 100;
-  width: 535px;
-  margin: 20px 0 0 150px;
-  display: none;
-  border-radius: var(--hn-radius);
-  box-shadow: var(--hn-shadow-lg);
-}
-
-#overlay-bg {
-  background: #000;
-  opacity: .5;
-  width: 4000px;
-  height: 4000px;
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 99;
-  display: none;
-}
-
 /* ===================== HN Heat ===================== */
 
 .no-heat {
-  color: #000 !important;
+  color: var(--hn-text) !important;
 }
 
 .mild {
-  color: #520 !important;
+  color: var(--hn-heat-mild) !important;
 }
 
 .medium {
-  color: #a40 !important;
+  color: var(--hn-heat-medium) !important;
 }
 
 .hot {
-  color: var(--hn-orange) !important;
+  color: var(--hn-orange-text) !important;
 }
 
 /* ===================== Jobs ===================== */
@@ -843,8 +820,8 @@ td #more.link-highlight {
   color: var(--hn-red);
   padding: 8px 16px;
   text-align: center;
-  background: #fff0f0;
-  border-bottom: 1px solid #ffd0d0;
+  background: var(--hn-alert-bg);
+  border-bottom: 1px solid var(--hn-alert-border);
   font-size: 13px;
 }
 
@@ -867,7 +844,7 @@ body#login-body tr#content form td:first-child {
 }
 
 #user-profile td:nth-child(2) {
-  color: #000;
+  color: var(--hn-text);
 }
 
 #user-profile.your-profile td p:first-of-type {
@@ -913,7 +890,7 @@ body#login-body {
 }
 
 #login-body b {
-  color: #000;
+  color: var(--hn-text);
 }
 
 #login-body #login-msg {
@@ -957,13 +934,14 @@ body#login-body {
   content: "";
 }
 
-.hnes-actions:before {
+.hnes-actions:not(:empty):before {
   content: "[ ";
 }
 
-.hnes-actions:after {
+.hnes-actions:not(:empty):after {
   content: " ]";
 }
+
 
 /* ===================== User tags ===================== */
 
@@ -983,7 +961,7 @@ body#login-body {
 
 .hnes-tagText:not(:empty) {
   padding: 1px 6px;
-  color: #000;
+  color: var(--hn-text);
   background: var(--hn-bg-alt);
   border-radius: 10px;
   font-size: 10px;
@@ -1016,11 +994,12 @@ body#login-body {
 /* ===================== HNES comments tree ===================== */
 
 #hnmain table.comment-tree {
-  display: none;
+  display: table;
 }
 
+
 #hnes-comments {
-  color: #000;
+  color: var(--hn-text);
   font-family: var(--hn-font);
   font-size: 14px;
   line-height: 1.65em;
@@ -1042,7 +1021,7 @@ body#login-body {
 }
 
 #hnes-comments .parent {
-  display: none;
+  color: var(--hn-text-muted);
 }
 
 #hnes-comments .replies {
@@ -1092,9 +1071,17 @@ body#login-body {
   margin-left: 1px;
   margin-right: 1px !important;
   padding: 0;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 10px;
+}
+
+.unvoter.voted::after {
+  content: "\00d7";  /* × */
+  font-size: 13px;
+  line-height: 10px;
+  color: var(--hn-text-muted);
+}
+
+.unvoter.voted:hover::after {
+  color: var(--hn-red);
 }
 
 .hnes-comment header a, .hnes-comment header span {
@@ -1122,41 +1109,26 @@ body#login-body {
   margin: 2px 1px;
 }
 
-.upvote.nodownvote {
-  margin-top: 7px;
-}
-
-/* CSS-drawn vote arrows for index pages */
-.up-arrow, .down-arrow {
+/* arrow shape — without a sized, colored box the vote anchors are invisible */
+.votearrow {
   width: 0;
   height: 0;
-  cursor: pointer;
-  transition: opacity var(--hn-transition);
-  opacity: 0.4;
-}
-
-.up-arrow {
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-bottom: 7px solid var(--hn-text-muted);
+  border-bottom: 8px solid var(--hn-text-muted);
+  transition: border-color var(--hn-transition);
 }
 
-.down-arrow {
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid var(--hn-text-muted);
+.votearrow:hover {
+  border-bottom-color: var(--hn-orange);
 }
 
-.up-arrow:hover, .down-arrow:hover {
-  opacity: 1;
+.votearrow.rotate180 {
+  transform: rotate(180deg);
 }
 
-.postlist-arrow {
-  margin: 0 auto;
-}
-
-.last-arrow {
-  margin-bottom: 6px;
+.upvote.nodownvote {
+  margin-top: 7px;
 }
 
 /* ===================== Reply count / collapsed ===================== */
@@ -1167,7 +1139,7 @@ body#login-body {
 }
 
 .hnes-comment.collapsed .reply-count {
-  color: #000;
+  color: var(--hn-text);
   display: initial;
 }
 
@@ -1218,6 +1190,12 @@ body#login-body {
   color: var(--hn-orange);
 }
 
+.hnes-comment .collapser:focus-visible {
+  outline: 2px solid var(--hn-blue);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
 .hnes-comment .collapser::after {
   content: "[\2013]";
 }
@@ -1256,7 +1234,7 @@ body#login-body {
 #threads-body .morelink, #threads-body .morelink:hover {
   display: block;
   padding: 1em;
-  color: var(--hn-orange);
+  color: var(--hn-orange-text);
   font-size: 16px;
   text-decoration: none;
   text-align: center;
