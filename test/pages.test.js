@@ -8,9 +8,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const { createHNEnv } = require('./setup');
 
-function loadFixture(name, url) {
-    const html = fs.readFileSync(`${__dirname}/fixtures/${name}.html`, 'utf8');
-    const window = createHNEnv(html, url);
+function awaitReady(window) {
     // let jsdom finish DOMContentLoaded so onReady runs
     return new Promise(resolve => {
         window.document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +16,14 @@ function loadFixture(name, url) {
             Promise.resolve().then(() => resolve(window));
         });
     });
+}
+
+function loadFixture(name, url) {
+    return loadFixtureHtml(fs.readFileSync(`${__dirname}/fixtures/${name}.html`, 'utf8'), url);
+}
+
+function loadFixtureHtml(html, url) {
+    return awaitReady(createHNEnv(html, url));
 }
 
 const HN_URL = 'https://news.ycombinator.com';
@@ -137,6 +143,43 @@ test('jobs page: no fake score, no self-referential comments link, blurb extract
     const comments = [...d.querySelectorAll('a.comments')];
     assert.strictEqual(comments.length, 0,
         'job rows must not get a comments link pointing at the current page');
+});
+
+test('news feed: job-posting row keeps natural cell widths', async () => {
+    // job posts appear in /news without score/comments; the row's native
+    // td.subtext must not be squeezed by the score/comments column rules
+    const storyRow = '<tr class="athing" id="1"><td class="title"><span class="rank">1.</span></td><td class="votelinks"></td><td class="title"><span class="titleline"><a href="x">Story</a></span></td></tr>' +
+        '<tr><td colspan="2"></td><td class="subtext"><span class="score">10 points</span> by <a href="user?id=a">a</a> <span class="age"><a href="item?id=1">2 hours ago</a></span> | <a href="hide?id=1">hide</a> | <a href="item?id=1">3 comments</a></td></tr>';
+    const jobRow = '<tr class="athing submission" id="50545238"><td align="right" valign="top" class="title"><span class="rank">44.</span></td><td><img src="s.gif" height="1" width="14"></td><td class="title"><span class="titleline"><a href="https://www.ycombinator.com/companies/evidence/jobs/x">Evidence (YC S21) Is Hiring</a></span></td></tr>' +
+        '<tr><td colspan="2"></td><td class="subtext"><span class="age" title="2026-11-18T12:00:16"><a href="item?id=50545238">1 day ago</a></span> | <a href="hide?id=50545238">hide</a></td></tr>';
+    const html = `<!DOCTYPE html><html><body><center><table><tbody>
+        <tr><td><table><tbody><tr><td class="pagetop"></td></tr></tbody></table></td></tr>
+        <tr></tr>
+        <tr><td><table><tbody>${storyRow}${jobRow}</tbody></table></td></tr>
+        </tbody></table></center></body></html>`;
+
+    const w = await loadFixtureHtml(html, `${HN_URL}/news?p=2`);
+    const d = w.document;
+
+    // job row: no fabricated columns, subtext keeps full width
+    const jobSubtext = [...d.querySelectorAll('td.subtext')]
+        .find(td => !td.querySelector('.score') && td.querySelector('.age'));
+    assert.ok(jobSubtext, 'job subtext preserved');
+    assert.ok(!jobSubtext.classList.contains('hnes-score-col') &&
+              !jobSubtext.classList.contains('hnes-comments-col'),
+        'job subtext must not carry the fixed-width column classes');
+
+    // story row: injected cells carry the classes (comments first, score second)
+    const storyCells = [...d.querySelector('#index-body tr.athing').children];
+    assert.strictEqual(storyCells[0].className, 'hnes-comments-col');
+    assert.strictEqual(storyCells[1].className, 'hnes-score-col');
+
+    // CSS contract: no width rule targets td.subtext or bare column position
+    const css = fs.readFileSync(`${__dirname}/../style.css`, 'utf8');
+    assert.ok(!/td\.subtext\s*\{[^}]*width/.test(css),
+        'td.subtext must not be width-constrained');
+    assert.ok(!/#index-body[^{]*td:nth-child\(2\)[^{]*\{[^}]*width/.test(css),
+        'column width must be class-based, not positional');
 });
 
 test('user page: profile enhancement runs (the .tr selector bug)', async () => {

@@ -190,13 +190,18 @@ table tr td {
   max-width: var(--hn-max-width);
 }
 
-#index-body #content table td:first-child {
+/* score/comments columns — sized via classes on the injected cells, not
+   column position, so native scoreless rows (job posts in /news) keep
+   their own widths instead of being squeezed to 64px.
+   Order after formatScore: td.hnes-comments-col is the row's first cell,
+   td.hnes-score-col the second. */
+#index-body #content table td.hnes-comments-col {
   width: 80px;
   max-width: 80px;
   text-align: right;
 }
 
-#index-body #content table td:nth-child(2) {
+#index-body #content table td.hnes-score-col {
   width: 64px;
   max-width: 64px;
   text-align: right;

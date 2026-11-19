@@ -1599,9 +1599,9 @@ var HN = {
                 by_el.appendChild(by);
             }
 
-            var score_el = createEl('<td></td>').firstElementChild;
+            var score_el = createEl('<td class="hnes-score-col"></td>').firstElementChild;
             score_el.appendChild(score);
-            var comments_el = createEl('<td></td>').firstElementChild;
+            var comments_el = createEl('<td class="hnes-comments-col"></td>').firstElementChild;
             comments_el.appendChild(comments);
 
             var parent = subtext.parentElement;
