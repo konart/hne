@@ -40,28 +40,8 @@
   --hn-header-height: 44px;
 }
 
-/* dark scheme — the custom-property palette makes this a variable swap */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --hn-bg: #1a1a19;
-    --hn-bg-alt: #242423;
-    --hn-surface: #1e1e1e;
-    --hn-surface-even: #242424;
-    --hn-text: #e8e8e6;
-    --hn-text-secondary: #c4c4c0;
-    --hn-text-muted: #9a9a9a;
-    --hn-border: #3a3a38;
-    --hn-border-light: #2e2e2c;
-    --hn-blue: #6f9ff5;
-    --hn-green: #5cb85c;
-    --hn-red: #e06666;
-    --hn-select-bg: #2c3a52;
-    --hn-heat-mild: #d9a066;
-    --hn-heat-medium: #ff9d45;
-    --hn-alert-bg: #3a2222;
-    --hn-alert-border: #5a2e2e;
-  }
-}
+/* Light palette only (as on main): a dark-scheme variable swap leaves native
+   HN text unreadable on the dark background, so no prefers-color-scheme block. */
 
 body {
   visibility: hidden;
