@@ -1559,8 +1559,24 @@ var HN = {
                 }
             }
 
-            // scoreless, comment-less rows (e.g. job posts) keep their native subtext
-            if (!score && !comments) return;
+            // scoreless, comment-less rows (e.g. job posts) keep their native
+            // subtext row, but transformed rows form a 4-column grid
+            // [comments, score, votelinks, title] (removeNumbers already
+            // deleted the rank cells); a job row's [spacer, title] would drop
+            // its title into the 64px score column and wrap into a block.
+            // Pad the row so its title lands in the title column, and span
+            // the subtext across votelinks+title.
+            if (!score && !comments) {
+                var titleRow = subtext.parentElement.previousElementSibling;
+                if (titleRow && titleRow.children.length === 2 &&
+                        !titleRow.querySelector('.votelinks')) {
+                    titleRow.insertBefore(
+                        createEl('<td colspan="2"></td>').firstElementChild,
+                        titleRow.firstChild);
+                }
+                subtext.setAttribute('colspan', '2');
+                return;
+            }
 
             if (!score) {
                 score = createEl('<span>0</span>').firstElementChild;
@@ -1613,7 +1629,10 @@ var HN = {
                 if (titleEl) titleEl.appendChild(by_el);
             }
             if (parent) {
-                if (parent.nextElementSibling) parent.nextElementSibling.remove();
+                // drop the row's empty spacer row (HN emits height:5px
+                // spacers); never remove a row that carries content
+                var next = parent.nextElementSibling;
+                if (next && next.children.length === 0) next.remove();
                 parent.remove();
             }
 
