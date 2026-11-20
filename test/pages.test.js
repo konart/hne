@@ -9,11 +9,11 @@ const fs = require('fs');
 const { createHNEnv } = require('./setup');
 
 function awaitReady(window) {
-    // let jsdom finish DOMContentLoaded so onReady runs
+    // let jsdom finish DOMContentLoaded so onReady runs; its handler is
+    // async (promise-based storage), so yield a macrotask for it to settle
     return new Promise(resolve => {
         window.document.addEventListener('DOMContentLoaded', () => {
-            // our onReady listener was registered first; give it a microtask
-            Promise.resolve().then(() => resolve(window));
+            setTimeout(() => resolve(window), 0);
         });
     });
 }
@@ -117,7 +117,7 @@ test('item page: collapsing persists with a timestamp and stale entries are prun
     // stale entry (no timestamp) is pruned by pruneStorage
     const w2 = await loadFixture('item', `${HN_URL}/item?id=50552424`);
     w2.chrome.storage.local._storage['999999'] = { isCollapsed: true };
-    w2.HN.pruneStorage();
+    await w2.HN.pruneStorage();
     assert.strictEqual(w2.chrome.storage.local._storage['999999'], undefined,
         'legacy timestamp-less collapse entry must be pruned');
 });
@@ -266,38 +266,30 @@ test('item page: failed vote request falls back instead of crashing', async () =
     assert.ok(c, 'comment node present');
     c.el = d.getElementById('50556084');
 
-    const origXHR = w.XMLHttpRequest;
-    const xhrResponse = { text: '' };
-    w.XMLHttpRequest = function () {
-        return {
-            open() {},
-            send() {
-                this.status = 200;
-                this.responseText = xhrResponse.text;
-                this.onload && this.onload({});
-            }
-        };
-    };
+    const origFetch = w.fetch;
+    let responseText = '';
+    w.fetch = async () => ({ text: async () => responseText });
 
     // login-expired style reply: no unvote url in the response body.
     // Before the fix this path did match(...)[0] on null → TypeError and a
     // permanently stale arrow.
-    xhrResponse.text = '<html><body>Login required.</body></html>';
+    responseText = '<html><body>Login required.</body></html>';
     c.upVoteUrl = '#vote?id=50556084&how=up'; // hash navigation is observable in jsdom
-    assert.doesNotThrow(() => w.HN.hnComments.voteRequest(c, 1),
-        'non-success vote response must not throw');
+    w.HN.hnComments.voteRequest(c, 1);
+    await new Promise(r => setTimeout(r, 0));
     assert.strictEqual(w.location.hash, '#vote?id=50556084&how=up',
         'falls back to HN navigation when no unvote url is extractable');
     assert.ok(!c.el.querySelector('.voteblock').classList.contains('voted'),
         'arrow must not be marked voted on failure');
 
     // success reply: unvote url extracted, arrow marked, vote stored
-    xhrResponse.text = "<html><a id='un_50556084' href='vote?id=50556084&amp;how=un&amp;goto=item%3Fid%3D50552424%2350556084'>unvote</a></html>";
+    responseText = "<html><a id='un_50556084' href='vote?id=50556084&amp;how=un&amp;goto=item%3Fid%3D50552424%2350556084'>unvote</a></html>";
     w.HN.hnComments.voteRequest(c, 1);
+    await new Promise(r => setTimeout(r, 0));
     assert.strictEqual(c.myVote, 1);
     assert.ok(c.el.querySelector('.voteblock').classList.contains('voted'));
     assert.ok(c.el.querySelector('a.unvote').getAttribute('href').includes('how=un'));
     assert.strictEqual(JSON.parse(w.chrome.storage.local._storage['HJain13']).votes, 1);
 
-    w.XMLHttpRequest = origXHR;
+    w.fetch = origFetch;
 });

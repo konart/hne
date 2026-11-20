@@ -53,59 +53,59 @@ function isScoreVisible(window, author) {
 
 // --- upvoteUserData accounting ---
 
-test('upvote from scratch stores votes: 1', () => {
+test('upvote from scratch stores votes: 1', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
     assert.strictEqual(getStoredVotes(w, 'alice'), 1);
 });
 
-test('upvote again accumulates to votes: 2', () => {
+test('upvote again accumulates to votes: 2', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', 1);
-    w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
     assert.strictEqual(getStoredVotes(w, 'alice'), 2);
 });
 
-test('downvote from scratch stores votes: -1', () => {
+test('downvote from scratch stores votes: -1', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);
+    await w.HN.upvoteUserData('bob', -1);
     assert.strictEqual(getStoredVotes(w, 'bob'), -1);
 });
 
-test('downvote again accumulates to votes: -2', () => {
+test('downvote again accumulates to votes: -2', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);
-    w.HN.upvoteUserData('bob', -1);
+    await w.HN.upvoteUserData('bob', -1);
+    await w.HN.upvoteUserData('bob', -1);
     assert.strictEqual(getStoredVotes(w, 'bob'), -2);
 });
 
 
 // --- unvote sequences (the bug scenario) ---
 
-test('upvote then unvote (undo) → net zero, votes deleted', () => {
+test('upvote then unvote (undo) → net zero, votes deleted', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', 1);       // upvote
-    w.HN.upvoteUserData('alice', -1);      // unvote: -myVote = -1
+    await w.HN.upvoteUserData('alice', 1);       // upvote
+    await w.HN.upvoteUserData('alice', -1);      // unvote: -myVote = -1
     assert.strictEqual(getStoredVotes(w, 'alice'), undefined,
         'votes should be deleted when net is 0');
     assert.strictEqual(isScoreVisible(w, 'alice'), false,
         'score should be hidden when net is 0');
 });
 
-test('downvote then unvote (undo) → net zero, votes deleted', () => {
+test('downvote then unvote (undo) → net zero, votes deleted', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);        // downvote
-    w.HN.upvoteUserData('bob', 1);         // unvote: -myVote = -(-1) = +1
+    await w.HN.upvoteUserData('bob', -1);        // downvote
+    await w.HN.upvoteUserData('bob', 1);         // unvote: -myVote = -(-1) = +1
     assert.strictEqual(getStoredVotes(w, 'bob'), undefined,
         'votes should be deleted when net is 0');
     assert.strictEqual(isScoreVisible(w, 'bob'), false,
         'score should be hidden when net is 0');
 });
 
-test('downvote then unvote does NOT subtract again (the bug)', () => {
+test('downvote then unvote does NOT subtract again (the bug)', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);        // downvote: votes = -1
-    w.HN.upvoteUserData('bob', 1);         // unvote: should be +1, NOT -1
+    await w.HN.upvoteUserData('bob', -1);        // downvote: votes = -1
+    await w.HN.upvoteUserData('bob', 1);         // unvote: should be +1, NOT -1
     // If the bug were present (always -1), votes would be -2 here
     assert.strictEqual(getStoredVotes(w, 'bob'), undefined,
         'downvote→unvote must restore to 0, not -2');
@@ -114,18 +114,18 @@ test('downvote then unvote does NOT subtract again (the bug)', () => {
 
 // --- legacy migration + exact author matching ---
 
-test('legacy string vote count migrates and accumulates', () => {
+test('legacy string vote count migrates and accumulates', async () => {
     const w = setupVoteEnv(['alice']);
     // old format: bare JSON number string, not {"votes": N}
     w.chrome.storage.local._storage['alice'] = '1';
-    w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
     assert.strictEqual(getStoredVotes(w, 'alice'), 2,
         'stored "1" must be read as votes: 1 and accumulate to 2, not overwrite to 1');
 });
 
-test('upvote display only touches the exact author (arc vs arcfour)', () => {
+test('upvote display only touches the exact author (arc vs arcfour)', async () => {
     const w = setupVoteEnv(['arc', 'arcfour']);
-    w.HN.upvoteUserData('arc', 1);
+    await w.HN.upvoteUserData('arc', 1);
     assert.strictEqual(getDisplayedScore(w, 'arc'), '1');
     assert.strictEqual(isScoreVisible(w, 'arcfour'), false,
         'substring author match must not write arcfour score');
@@ -133,53 +133,53 @@ test('upvote display only touches the exact author (arc vs arcfour)', () => {
 
 // --- myVote direction inversion (through the storage round-trip) ---
 
-test('myVote=1 (upvote) undone by -myVote: net zero (storage round-trip)', () => {
+test('myVote=1 (upvote) undone by -myVote: net zero (storage round-trip)', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', +1);   // upvote applies +1
-    w.HN.upvoteUserData('alice', -1);   // unvote applies -(-1) = -1
+    await w.HN.upvoteUserData('alice', +1);   // upvote applies +1
+    await w.HN.upvoteUserData('alice', -1);   // unvote applies -(-1) = -1
     assert.strictEqual(getStoredVotes(w, 'alice'), undefined);
 });
 
-test('myVote=-1 (downvote) undone by -myVote: net zero (storage round-trip)', () => {
+test('myVote=-1 (downvote) undone by -myVote: net zero (storage round-trip)', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);     // downvote applies -1
-    w.HN.upvoteUserData('bob', +1);     // unvote applies -(-1) = +1
+    await w.HN.upvoteUserData('bob', -1);     // downvote applies -1
+    await w.HN.upvoteUserData('bob', +1);     // unvote applies -(-1) = +1
     assert.strictEqual(getStoredVotes(w, 'bob'), undefined);
 });
 
 
 // --- display updates ---
 
-test('upvote updates displayed score', () => {
+test('upvote updates displayed score', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
     assert.strictEqual(getDisplayedScore(w, 'alice'), '1');
     assert.strictEqual(isScoreVisible(w, 'alice'), true);
 });
 
-test('downvote updates displayed score with negative', () => {
+test('downvote updates displayed score with negative', async () => {
     const w = setupVoteEnv(['bob']);
-    w.HN.upvoteUserData('bob', -1);
+    await w.HN.upvoteUserData('bob', -1);
     assert.strictEqual(getDisplayedScore(w, 'bob'), '-1');
     assert.strictEqual(isScoreVisible(w, 'bob'), true);
 });
 
-test('unvote to zero hides score', () => {
+test('unvote to zero hides score', async () => {
     const w = setupVoteEnv(['alice']);
-    w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
     assert.strictEqual(isScoreVisible(w, 'alice'), true);
-    w.HN.upvoteUserData('alice', -1);      // unvote
+    await w.HN.upvoteUserData('alice', -1);      // unvote
     assert.strictEqual(isScoreVisible(w, 'alice'), false);
 });
 
 
 // --- multiple users are independent ---
 
-test('voting on alice does not affect bob', () => {
+test('voting on alice does not affect bob', async () => {
     const w = setupVoteEnv(['alice', 'bob']);
-    w.HN.upvoteUserData('alice', 1);
-    w.HN.upvoteUserData('alice', 1);
-    w.HN.upvoteUserData('bob', -1);
+    await w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('alice', 1);
+    await w.HN.upvoteUserData('bob', -1);
     assert.strictEqual(getStoredVotes(w, 'alice'), 2);
     assert.strictEqual(getStoredVotes(w, 'bob'), -1);
 });
@@ -218,4 +218,65 @@ test('new-comment highlight compares ids numerically, not as strings', () => {
     assert.ok(newEl.classList.contains('hnes-new'),
         '8-digit id must be recognized as newer than stored 7-digit id');
     assert.ok(!oldEl.classList.contains('hnes-new'));
+});
+
+
+// --- comment-count parsing tolerates &nbsp; (live HN markup) ---
+
+test('getInfo parses "N&nbsp;comments" count, not NaN', () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/item?id=42');
+    const d = w.document;
+    const subtext = d.createElement('td');
+    subtext.className = 'subtext';
+    const a = d.createElement('a');
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191\u00a0comments'; // live HN uses &nbsp; before the label
+    subtext.appendChild(a);
+    d.body.appendChild(subtext);
+
+    const info = w.CommentTracker.getInfo();
+    assert.strictEqual(info.num, 191,
+        'count split on plain space produced NaN for &nbsp;-separated markup');
+});
+
+test('index new-comments counter shows the diff, never NaN', async () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/news');
+    const d = w.document;
+    const a = d.createElement('a');
+    a.className = 'comments';
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191'; // formatScore already reduced the label to digits
+    d.body.appendChild(a);
+
+    // stored baseline from a previous visit
+    w.chrome.storage.local._storage['42'] = JSON.stringify({ id: 42, num: 180 });
+    w.CommentTracker.checkIndexPage();
+    await new Promise(r => setTimeout(r, 0));
+
+    const newcomm = a.querySelector('.newcomments');
+    assert.ok(newcomm, 'new-comments span rendered');
+    assert.strictEqual(newcomm.textContent, '11 / ');
+    assert.ok(!a.textContent.includes('NaN'));
+});
+
+test('index counter skips legacy entries whose stored num is NaN (null)', async () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/news');
+    const d = w.document;
+    const a = d.createElement('a');
+    a.className = 'comments';
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191';
+    d.body.appendChild(a);
+
+    // JSON.stringify(NaN) → null: entries written while parsing was broken
+    w.chrome.storage.local._storage['42'] = JSON.stringify({ id: 42, num: NaN });
+    w.CommentTracker.checkIndexPage();
+    await new Promise(r => setTimeout(r, 0));
+
+    assert.strictEqual(a.querySelector('.newcomments'), null,
+        'no diff possible against a corrupt baseline — leave the count alone');
+    assert.ok(!a.textContent.includes('NaN'));
 });

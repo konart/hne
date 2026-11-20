@@ -1,11 +1,15 @@
 {
   "name": "hn-es",
-  "version": "1.6.1",
+  "version": "1.7.1",
   "private": true,
   "scripts": {
-    "test": "node --test test/linkify.test.js test/util.test.js test/votes.test.js test/dropdown.test.js test/dropdown_css.test.js test/pages.test.js"
+    "test": "node --test test/linkify.test.js test/util.test.js test/votes.test.js test/dropdown.test.js test/dropdown_css.test.js test/pages.test.js",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "jsdom": "^24.0.0"
   }
 }

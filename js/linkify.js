@@ -17,32 +17,30 @@
  * triggers the mailto plugin).
  */
 
-(function () {
+(() => {
     // Entity-aware boundary: quotes are escaped to &quot; / &#39; first,
     // so delimiters must match the escaped forms as well as raw ones.
-    var pre = '(^|["\'(\\s]|&lt;|&quot;|&#39;)';
-    var post = '((?:[:?]|\\.+)?(?=(?:\\s|$)|&gt;|[)"\',]|&quot;|&#39;))';
+    const pre = '(^|["\'(\\s]|&lt;|&quot;|&#39;)';
+    const post = '((?:[:?]|\\.+)?(?=(?:\\s|$)|&gt;|[)"\',]|&quot;|&#39;))';
 
-    var noProtocolUrl = new RegExp(pre + '(www\\..+?\\..+?)' + post, 'g');
-    var httpOrMailtoUrl = new RegExp(pre + '((?:(?:https?|ftp):\\/\\/|mailto:).+?)' + post, 'g');
+    const noProtocolUrl = new RegExp(`${pre}(www\\..+?\\..+?)${post}`, 'g');
+    const httpOrMailtoUrl = new RegExp(`${pre}((?:(?:https?|ftp):\\/\\/|mailto:).+?)${post}`, 'g');
 
-    var SKIP_TAGS = /^(a|button|textarea)$/i;
+    const SKIP_TAGS = /^(a|button|textarea)$/i;
 
     // splits on complete <a ...>...</a> spans produced by earlier plugins;
     // captured group keeps the anchors at odd indices
-    var ANCHOR_SPLIT = /(<a\s[^>]*>[\s\S]*?<\/a>)/;
+    const ANCHOR_SPLIT = /(<a\s[^>]*>[\s\S]*?<\/a>)/;
 
-    var plugins = [
+    const plugins = [
         // default URL linkifier (built-in)
-        function (html) {
-            return html
-                .replace(noProtocolUrl, '$1<a href="<``>://$2">$2</a>$3')
-                .replace(httpOrMailtoUrl, '$1<a href="$2">$2</a>$3')
-                .replace(/"<``>/g, '"http');
-        },
+        (html) => html
+            .replace(noProtocolUrl, '$1<a href="<``>://$2">$2</a>$3')
+            .replace(httpOrMailtoUrl, '$1<a href="$2">$2</a>$3')
+            .replace(/"<``>/g, '"http'),
         // mailto plugin
         {
-            re: new RegExp(pre + '([^"\'(\\s&]+?@.+\\.[a-z]{2,7})' + post, 'gi'),
+            re: new RegExp(`${pre}([^"'(\\s&]+?@.+\\.[a-z]{2,7})${post}`, 'gi'),
             tmpl: '$1<a href="mailto:$2">$2</a>$3'
         },
         // twitter @usernames
@@ -53,44 +51,42 @@
         // twitter #hashtags
         {
             re: /(^|["'(]|&lt;|&quot;|&#39;|\s)(#.+?)((?:[:?]|\.+)?(?:\s|$)|&gt;|[)"',]|&quot;|&#39;)/gi,
-            tmpl: function (match, pre, hashTag, post) {
-                return pre + '<a href="https://www.twitter.com/search?q=' + encodeURIComponent(hashTag) + '">' + hashTag + '</a>' + post;
-            }
+            tmpl: (match, pre, hashTag, post) =>
+                `${pre}<a href="https://www.twitter.com/search?q=${encodeURIComponent(hashTag)}">${hashTag}</a>${post}`
         }
     ];
 
-    function escapeHtml(s) {
-        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
+    const escapeHtml = (s) => s
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
     function applyPlugin(html, plugin) {
-        var fn = typeof plugin === 'function'
+        const fn = typeof plugin === 'function'
             ? plugin
-            : function (s) { return s.replace(plugin.re, plugin.tmpl); };
+            : (s) => s.replace(plugin.re, plugin.tmpl);
         // never touch anchor markup inserted by earlier plugins
-        return html.split(ANCHOR_SPLIT).map(function (part, i) {
-            return i % 2 === 1 ? part : fn(part);
-        }).join('');
+        return html.split(ANCHOR_SPLIT)
+            .map((part, i) => (i % 2 === 1 ? part : fn(part)))
+            .join('');
     }
 
     function processNode(node) {
-        var children = node.childNodes;
-        for (var i = 0; i < children.length; i++) {
-            var n = children[i];
+        const children = node.childNodes;
+        for (let i = 0; i < children.length; i++) {
+            const n = children[i];
 
             if (n.nodeType === 3) {  // text node
-                var text = n.nodeValue;
+                const text = n.nodeValue;
                 if (text.length <= 1 || !/\S/.test(text)) continue;
 
-                var html = escapeHtml(text);
-                var prev = html;
-                for (var j = 0; j < plugins.length; j++) {
-                    html = applyPlugin(html, plugins[j]);
+                let html = escapeHtml(text);
+                const prev = html;
+                for (const plugin of plugins) {
+                    html = applyPlugin(html, plugin);
                 }
 
                 if (html !== prev) {
-                    var container = document.createElement('div');
+                    const container = document.createElement('div');
                     container.innerHTML = html;
                     while (container.firstChild) {
                         node.insertBefore(container.firstChild, n);
@@ -103,7 +99,7 @@
         }
     }
 
-    window.linkify = function (element) {
+    window.linkify = (element) => {
         processNode(element);
         return element;
     };

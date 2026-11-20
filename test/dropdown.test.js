@@ -99,3 +99,35 @@ test('my-more-link toggle shows and hides #user-hidden', () => {
     click(myMore);
     assert.strictEqual(hidden.style.display, 'none');
 });
+
+test('active user-nav link is prefixed "Your" only for the logged-in user', () => {
+    // regression: `pathname != '/upvoted' || pathname != '/favorites'` was a
+    // tautology; the prefix logic ran even where it shouldn't. It must only
+    // fire when an active link exists and reflect the id match.
+    // real HN header shape: td2 = nav .pagetop, td3 = user .pagetop
+    const html = `<!DOCTYPE html><html><body><table id="header"><tbody><tr>
+        <td class="logo"></td>
+        <td><span class="pagetop"></span></td>
+        <td><span class="pagetop" id="usercell"></span></td>
+    </tr></tbody></table></body></html>`;
+    const window = createEnv(html, 'https://example.com/user?id=alice');
+    loadScript(window, 'js/util.js');
+    loadScript(window, 'js/hn.js');
+
+    const { document, HN } = window;
+    const pagetop = document.getElementById('usercell');
+    const profile = document.createElement('a');
+    profile.href = '/user?id=alice';
+    profile.textContent = 'alice';
+    const logout = document.createElement('a');
+    logout.href = '/logout';
+    logout.textContent = 'logout';
+    pagetop.append(profile, document.createTextNode(' (42) | '), logout);
+
+    HN.rewriteUserNav(pagetop);
+
+    const active = document.querySelector('#top-navigation .new-active-link');
+    assert.ok(active, 'active link created for current page');
+    assert.strictEqual(active.textContent, 'Your profile',
+        'own page gets the "Your" prefix, not "alice\'s"');
+});
