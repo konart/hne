@@ -70,7 +70,9 @@ const CommentTracker = {
 
         return {
             id: pageId,
-            num: Number(commentInfoEl.textContent.split(' ')[0]),
+            // live HN separates count and label with &nbsp;, not a space;
+            // parseInt reads the leading digits either way ("discuss" → 0)
+            num: parseInt(commentInfoEl.textContent, 10) || 0,
             last_comment_id: CommentTracker.getLastCommentId()
         };
     },
@@ -114,8 +116,11 @@ const CommentTracker = {
                 if (!raw) return;
 
                 const data = JSON.parse(raw);
-                const diff = Number(linkEl.textContent) - data.num;
-                if (diff <= 0) return;
+                // entries written while num parsing was broken carry NaN
+                // (null after JSON round-trip) — nothing to diff against
+                if (typeof data.num !== 'number') return;
+                const diff = parseInt(linkEl.textContent, 10) - data.num;
+                if (!(diff > 0)) return;
 
                 const newcomm = el('span', 'newcomments');
                 newcomm.title = 'New Comments';
@@ -1187,9 +1192,9 @@ const HN = {
     graphPoll(poll) {
         const pollMaxWidth = 500;
         const pollScores = poll ? $$('.default', poll) : [];
-        const totalscore = pollScores.reduce((sum, scoreEl) => sum + Number(scoreEl.textContent.split(' ')[0]), 0);
+        const totalscore = pollScores.reduce((sum, scoreEl) => sum + (parseInt(scoreEl.textContent, 10) || 0), 0);
         pollScores.forEach((scoreEl) => {
-            const score = Number(scoreEl.textContent.split(' ')[0]);
+            const score = parseInt(scoreEl.textContent, 10) || 0;
             if (score > 0) {
                 const width = Math.max(1, score / totalscore * pollMaxWidth);
                 const graphEl = createEl('<tr><td></td><td><div class="poll-graph"></div></td></tr>').firstElementChild;

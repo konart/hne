@@ -219,3 +219,64 @@ test('new-comment highlight compares ids numerically, not as strings', () => {
         '8-digit id must be recognized as newer than stored 7-digit id');
     assert.ok(!oldEl.classList.contains('hnes-new'));
 });
+
+
+// --- comment-count parsing tolerates &nbsp; (live HN markup) ---
+
+test('getInfo parses "N&nbsp;comments" count, not NaN', () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/item?id=42');
+    const d = w.document;
+    const subtext = d.createElement('td');
+    subtext.className = 'subtext';
+    const a = d.createElement('a');
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191\u00a0comments'; // live HN uses &nbsp; before the label
+    subtext.appendChild(a);
+    d.body.appendChild(subtext);
+
+    const info = w.CommentTracker.getInfo();
+    assert.strictEqual(info.num, 191,
+        'count split on plain space produced NaN for &nbsp;-separated markup');
+});
+
+test('index new-comments counter shows the diff, never NaN', async () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/news');
+    const d = w.document;
+    const a = d.createElement('a');
+    a.className = 'comments';
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191'; // formatScore already reduced the label to digits
+    d.body.appendChild(a);
+
+    // stored baseline from a previous visit
+    w.chrome.storage.local._storage['42'] = JSON.stringify({ id: 42, num: 180 });
+    w.CommentTracker.checkIndexPage();
+    await new Promise(r => setTimeout(r, 0));
+
+    const newcomm = a.querySelector('.newcomments');
+    assert.ok(newcomm, 'new-comments span rendered');
+    assert.strictEqual(newcomm.textContent, '11 / ');
+    assert.ok(!a.textContent.includes('NaN'));
+});
+
+test('index counter skips legacy entries whose stored num is NaN (null)', async () => {
+    const w = createHNEnv('<!DOCTYPE html><html><body></body></html>',
+        'https://news.ycombinator.com/news');
+    const d = w.document;
+    const a = d.createElement('a');
+    a.className = 'comments';
+    a.setAttribute('href', 'item?id=42');
+    a.textContent = '191';
+    d.body.appendChild(a);
+
+    // JSON.stringify(NaN) → null: entries written while parsing was broken
+    w.chrome.storage.local._storage['42'] = JSON.stringify({ id: 42, num: NaN });
+    w.CommentTracker.checkIndexPage();
+    await new Promise(r => setTimeout(r, 0));
+
+    assert.strictEqual(a.querySelector('.newcomments'), null,
+        'no diff possible against a corrupt baseline — leave the count alone');
+    assert.ok(!a.textContent.includes('NaN'));
+});
